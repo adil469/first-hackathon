@@ -1,0 +1,439 @@
+---
+sidebar_position: 103
+description: Quick reference guide for ROS 2 concepts and commands
+---
+
+# ROS 2 Quick Reference Guide
+
+## Core Concepts
+
+### Nodes
+- **Definition**: A process that performs computation in the ROS 2 system
+- **Purpose**: Provides a way to distribute computation across multiple processes
+- **Implementation**: Created using client libraries (rclpy for Python, rclcpp for C++)
+
+### Topics
+- **Definition**: Communication channels for data streams in publish/subscribe pattern
+- **Purpose**: Enable asynchronous communication between nodes
+- **Characteristics**: Unidirectional, many-to-many communication
+
+### Services
+- **Definition**: Communication pattern for request/response interactions
+- **Purpose**: Enable synchronous communication for direct queries
+- **Characteristics**: Bidirectional, one-to-one communication
+
+## Common Commands
+
+### Environment Setup
+```bash
+# Source ROS 2 environment
+source /opt/ros/humble/setup.bash  # Replace 'humble' with your ROS 2 distro
+
+# Create a workspace
+mkdir -p ~/ros2_ws/src
+cd ~/ros2_ws
+colcon build
+source install/setup.bash
+```
+
+### Package Management
+```bash
+# Create a new package
+ros2 pkg create --build-type ament_python my_package
+
+# List all packages
+ros2 pkg list
+
+# Show package information
+ros2 pkg describe <package_name>
+```
+
+### Node Operations
+```bash
+# Run a node
+ros2 run <package_name> <node_name>
+
+# List active nodes
+ros2 node list
+
+# Show node information
+ros2 node info <node_name>
+```
+
+### Topic Operations
+```bash
+# List active topics
+ros2 topic list
+
+# Show topic type
+ros2 topic type <topic_name>
+
+# Echo topic data
+ros2 topic echo <topic_name> <message_type>
+
+# Publish to a topic
+ros2 topic pub <topic_name> <message_type> <values>
+
+# Show topic information
+ros2 topic info <topic_name>
+```
+
+### Service Operations
+```bash
+# List available services
+ros2 service list
+
+# Show service type
+ros2 service type <service_name>
+
+# Call a service
+ros2 service call <service_name> <service_type> <request_values>
+
+# Show service information
+ros2 service info <service_name>
+```
+
+## Python (rclpy) Code Patterns
+
+### Basic Node Structure
+```python
+import rclpy
+from rclpy.node import Node
+
+class MyNode(Node):
+    def __init__(self):
+        super().__init__('node_name')
+        # Node initialization code here
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = MyNode()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+### Publisher Example
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class PublisherNode(Node):
+    def __init__(self):
+        super().__init__('publisher_node')
+        self.publisher = self.create_publisher(String, 'topic_name', 10)
+        self.timer = self.create_timer(0.5, self.timer_callback)  # Publish every 0.5 seconds
+        self.i = 0
+
+    def timer_callback(self):
+        msg = String()
+        msg.data = f'Hello World: {self.i}'
+        self.publisher.publish(msg)
+        self.get_logger().info(f'Publishing: "{msg.data}"')
+        self.i += 1
+
+def main(args=None):
+    rclpy.init(args=args)
+    publisher_node = PublisherNode()
+
+    try:
+        rclpy.spin(publisher_node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        publisher_node.destroy_node()
+        rclpy.shutdown()
+```
+
+### Subscriber Example
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class SubscriberNode(Node):
+    def __init__(self):
+        super().__init__('subscriber_node')
+        self.subscription = self.create_subscription(
+            String,
+            'topic_name',
+            self.listener_callback,
+            10)
+        self.subscription  # Prevent unused variable warning
+
+    def listener_callback(self, msg):
+        self.get_logger().info(f'I heard: "{msg.data}"')
+
+def main(args=None):
+    rclpy.init(args=args)
+    subscriber_node = SubscriberNode()
+
+    try:
+        rclpy.spin(subscriber_node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        subscriber_node.destroy_node()
+        rclpy.shutdown()
+```
+
+### Service Server Example
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class ServiceServer(Node):
+    def __init__(self):
+        super().__init__('add_two_ints_server')
+        self.srv = self.create_service(AddTwoInts, 'add_two_ints', self.add_two_ints_callback)
+
+    def add_two_ints_callback(self, request, response):
+        response.sum = request.a + request.b
+        self.get_logger().info(f'Returning {request.a} + {request.b} = {response.sum}')
+        return response
+
+def main(args=None):
+    rclpy.init(args=args)
+    service_server = ServiceServer()
+
+    try:
+        rclpy.spin(service_server)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        service_server.destroy_node()
+        rclpy.shutdown()
+```
+
+### Service Client Example
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class ServiceClient(Node):
+    def __init__(self):
+        super().__init__('add_two_ints_client')
+        self.cli = self.create_client(AddTwoInts, 'add_two_ints')
+        while not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Service not available, waiting again...')
+        self.req = AddTwoInts.Request()
+
+    def send_request(self, a, b):
+        self.req.a = a
+        self.req.b = b
+        future = self.cli.call_async(self.req)
+        rclpy.spin_until_future_complete(self, future)
+        return future.result()
+
+def main(args=None):
+    rclpy.init(args=args)
+    service_client = ServiceClient()
+    response = service_client.send_request(2, 3)
+    service_client.get_logger().info(f'Result: {response.sum}')
+
+    service_client.destroy_node()
+    rclpy.shutdown()
+```
+
+## URDF Quick Reference
+
+### Basic URDF Structure
+```xml
+<robot name="robot_name">
+  <!-- Links define rigid bodies -->
+  <link name="link_name">
+    <visual>
+      <geometry>
+        <box size="0.1 0.1 0.1"/>
+      </geometry>
+      <material name="color">
+        <color rgba="1.0 0.0 0.0 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.1 0.1 0.1"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.1"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+    </inertial>
+  </link>
+
+  <!-- Joints connect links -->
+  <joint name="joint_name" type="revolute">
+    <parent link="parent_link"/>
+    <child link="child_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.57" upper="1.57" effort="10" velocity="1"/>
+  </joint>
+</robot>
+```
+
+### Joint Types
+- **fixed**: No movement, rigid connection
+- **revolute**: Rotational movement with limits
+- **continuous**: Rotational movement without limits
+- **prismatic**: Linear movement with limits
+- **planar**: Movement on a plane
+- **floating**: 6 DOF movement (no constraints)
+
+## Quality of Service (QoS) Settings
+
+### Common QoS Profiles
+```python
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+
+# Default profile
+default_qos = QoSProfile(depth=10)
+
+# Reliable communication
+reliable_qos = QoSProfile(
+    depth=10,
+    reliability=ReliabilityPolicy.RELIABLE
+)
+
+# Best effort (faster, less reliable)
+best_effort_qos = QoSProfile(
+    depth=10,
+    reliability=ReliabilityPolicy.BEST_EFFORT
+)
+
+# Transient local durability (keep messages for late joiners)
+transient_qos = QoSProfile(
+    depth=10,
+    durability=DurabilityPolicy.TRANSIENT_LOCAL
+)
+```
+
+## Parameter Management
+
+### Declaring and Using Parameters
+```python
+import rclpy
+from rclpy.node import Node
+
+class ParameterNode(Node):
+    def __init__(self):
+        super().__init__('parameter_node')
+
+        # Declare parameters with default values
+        self.declare_parameter('param_name', 'default_value')
+        self.declare_parameter('number_param', 42)
+
+        # Get parameter values
+        param_value = self.get_parameter('param_name').value
+        number_value = self.get_parameter('number_param').value
+
+        self.get_logger().info(f'param_name: {param_value}, number_param: {number_value}')
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = ParameterNode()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+```
+
+### Launching with Parameters
+```bash
+# From command line
+ros2 run my_package my_node --ros-args -p param_name:=new_value -p number_param:=100
+
+# Using parameter file
+ros2 run my_package my_node --ros-args --params-file path/to/params.yaml
+```
+
+## Common Message Types
+
+### Standard Messages
+- `std_msgs/Bool`, `std_msgs/Int32`, `std_msgs/Float64`: Basic data types
+- `std_msgs/String`: Text messages
+- `geometry_msgs/Twist`: Velocity commands for mobile robots
+- `sensor_msgs/JointState`: Joint positions, velocities, efforts
+- `geometry_msgs/Point`, `geometry_msgs/Pose`: Position and orientation
+- `sensor_msgs/LaserScan`: Laser range finder data
+- `sensor_msgs/Image`: Camera images
+- `nav_msgs/Odometry`: Odometry information
+
+## Debugging Commands
+
+### Monitoring System State
+```bash
+# Monitor all topics and their types
+ros2 topic list -t
+
+# Monitor all services and their types
+ros2 service list -t
+
+# Monitor action servers
+ros2 action list
+
+# Get detailed information about a node
+ros2 node info <node_name>
+
+# Visualize the ROS 2 graph
+rqt_graph
+```
+
+### Performance Monitoring
+```bash
+# Monitor topic bandwidth
+ros2 topic bw <topic_name>
+
+# Monitor topic delay and reliability
+ros2 topic hz <topic_name>
+
+# Monitor service call timing
+ros2 service call <service_name> <service_type> <request>
+```
+
+## Common Issues and Solutions
+
+### Topic Connection Issues
+- **Problem**: Nodes can't communicate on topics
+- **Solution**: Check that topic names match exactly, including namespaces
+- **Solution**: Verify that nodes are on the same ROS domain
+
+### Service Connection Issues
+- **Problem**: Service client can't reach server
+- **Solution**: Ensure service server is running before client makes calls
+- **Solution**: Check service names and types match
+
+### Parameter Issues
+- **Problem**: Parameters not being set correctly
+- **Solution**: Ensure parameters are declared before use
+- **Solution**: Check parameter names and types in launch files
+
+## Best Practices
+
+1. **Use descriptive names** for nodes, topics, and services
+2. **Follow naming conventions**: lower_case_with_underscores
+3. **Handle exceptions** gracefully, especially during shutdown
+4. **Use appropriate QoS settings** for your application's requirements
+5. **Test with realistic data rates** before deployment
+6. **Document your interfaces** with comments and README files
+7. **Use launch files** to manage complex system startup
+8. **Implement proper logging** for debugging and monitoring
+
+## Troubleshooting Quick Tips
+
+- Use `ros2 doctor` to check system health
+- Check ROS_DOMAIN_ID if multiple ROS systems are on the same network
+- Use `rqt` for GUI-based monitoring and debugging
+- Monitor system resources (CPU, memory) during operation
+- Test individual components before integrating
+- Use simulation before testing on real hardware

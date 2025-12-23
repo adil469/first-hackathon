@@ -1,0 +1,1401 @@
+---
+sidebar_position: 4
+title: 'Practical Examples: Python AI Agent ↔ ROS 2 Integration'
+keywords: [ros2, python, ai, agent, controller, integration, examples, robotics, practical]
+description: 'Practical examples demonstrating Python AI agent integration with ROS 2 controllers'
+---
+
+# Practical Examples: Python AI Agent ↔ ROS 2 Integration
+
+## Overview
+
+This section provides practical, real-world examples of how Python AI agents can integrate with ROS 2 controllers. These examples demonstrate complete implementations that combine multiple communication patterns to create functional AI-robot systems.
+
+## Example 1: AI-Powered Object Manipulation System
+
+### Scenario
+An AI agent detects objects in a robot's environment and commands the robot to approach and grasp them using integrated navigation and manipulation capabilities.
+
+### System Architecture
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   AI Agent      │    │ Navigation      │    │ Manipulation    │    │ Robot Hardware  │
+│                 │    │ Controller      │    │ Controller      │    │                 │
+│  ┌───────────┐  │    │  ┌───────────┐  │    │  ┌───────────┐  │    │  ┌───────────┐  │
+│  │Object     │  │    │  │MoveBase   │  │    │  │JointState │  │    │  │Mobile     │  │
+│  │Detection  │──┼────┼──┤           │──┼────┼──┤           │──┼────┼──┤Base       │  │
+│  │           │  │    │  │Navigation │  │    │  │Manipulator│  │    │  │           │  │
+│  │           │  │    │  │           │  │    │  │           │  │    │  │           │  │
+│  └───────────┘  │    │  └───────────┘  │    │  └───────────┘  │    │  └───────────┘  │
+│                 │    │                 │    │                 │    │                 │
+│  ┌───────────┐  │    │  ┌───────────┐  │    │  ┌───────────┐  │    │  ┌───────────┐  │
+│  │Decision   │  │    │  │Action     │  │    │  │Action     │  │    │  │Actuators   │  │
+│  │Maker      │──┼────┼──┤Client     │──┼────┼──┤Client     │──┼────┼──┤           │  │
+│  │           │  │    │  │           │  │    │  │           │  │    │  │           │  │
+│  └───────────┘  │    │  └───────────┘  │    │  └───────────┘  │    │  └───────────┘  │
+│                 │    │                 │    │                 │    │                 │
+│  ┌───────────┐  │    │  ┌───────────┐  │    │  ┌───────────┐  │    │  ┌───────────┐  │
+│  │Sensor     │  │    │  │Action     │  │    │  │Action     │  │    │  │Sensors    │  │
+│  │Fusion     │──┼────┼──┤Server     │──┼────┼──┤Server     │──┼────┼──┤           │  │
+│  │           │  │    │  │           │  │    │  │           │  │    │  │           │  │
+│  └───────────┘  │    │  └───────────┘  │    │  └───────────┘  │    │  └───────────┘  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### Implementation Code
+
+```python
+#!/usr/bin/env python3
+"""
+AI-Powered Object Manipulation System
+
+This node integrates computer vision, navigation, and manipulation
+to create an intelligent object manipulation system.
+"""
+
+import rclpy
+from rclpy.node import Node
+from rclpy.action import ActionClient
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+
+from geometry_msgs.msg import PoseStamped, Twist
+from sensor_msgs.msg import Image, LaserScan
+from vision_msgs.msg import Detection2DArray
+from nav2_msgs.action import NavigateToPose
+from control_msgs.action import FollowJointTrajectory
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+from std_msgs.msg import String
+
+import cv2
+import numpy as np
+from cv_bridge import CvBridge
+
+
+class AIObjectManipulationSystem(Node):
+    """
+    AI system that integrates object detection, navigation, and manipulation.
+    """
+
+    def __init__(self):
+        super().__init__('ai_object_manipulation_system')
+
+        # QoS profile for sensor data
+        qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.VOLATILE,
+            depth=10
+        )
+
+        # Publishers for commanding robot
+        self.cmd_vel_publisher = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.gripper_publisher = self.create_publisher(String, '/gripper_command', 10)
+
+        # Subscribers for sensor data
+        self.image_subscriber = self.create_subscription(
+            Image, '/camera/image_raw', self.image_callback, qos_profile)
+        self.laser_subscriber = self.create_subscription(
+            LaserScan, '/scan', self.laser_callback, qos_profile)
+        self.detection_subscriber = self.create_subscription(
+            Detection2DArray, '/object_detections', self.detection_callback, 10)
+
+        # Action clients for navigation and manipulation
+        self.nav_client = ActionClient(self, NavigateToPose, 'navigate_to_pose')
+        self.manipulation_client = ActionClient(
+            self, FollowJointTrajectory, 'manipulator_controller/follow_joint_trajectory')
+
+        # CV bridge for image processing
+        self.cv_bridge = CvBridge()
+
+        # State management
+        self.current_state = 'IDLE'  # IDLE, NAVIGATING, MANIPULATING, SEARCHING
+        self.target_object = None
+        self.robot_pose = None
+        self.object_detections = []
+
+        # Timer for AI decision making
+        self.ai_timer = self.create_timer(1.0, self.ai_decision_loop)
+
+        self.get_logger().info('AI Object Manipulation System initialized')
+
+    def image_callback(self, msg):
+        """
+        Process camera images for object detection.
+        """
+        try:
+            cv_image = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+
+            # Process image and detect objects
+            detected_objects = self.process_image(cv_image)
+
+            # Update object detections
+            self.object_detections = detected_objects
+
+            self.get_logger().info(f'Detected {len(detected_objects)} objects in image')
+
+        except Exception as e:
+            self.get_logger().error(f'Error processing image: {e}')
+
+    def laser_callback(self, msg):
+        """
+        Process laser scan data for obstacle detection.
+        """
+        # Process laser scan for navigation safety
+        self.laser_data = msg
+
+        # Check for obstacles in path
+        min_distance = min(msg.ranges)
+        if min_distance < 0.5:  # Less than 0.5m is considered dangerous
+            self.get_logger().warn('Obstacle detected! Stopping robot.')
+            self.stop_robot()
+
+    def detection_callback(self, msg):
+        """
+        Process object detection results from vision system.
+        """
+        self.object_detections = msg.detections
+        self.get_logger().info(f'Received {len(msg.detections)} object detections')
+
+    def process_image(self, cv_image):
+        """
+        Process image to detect objects of interest.
+        """
+        # This is a simplified example - in practice, you would use
+        # deep learning models or computer vision algorithms
+        detected_objects = []
+
+        # Convert to HSV for color-based detection (example)
+        hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
+
+        # Define color range for red objects (example)
+        lower_red = np.array([0, 50, 50])
+        upper_red = np.array([10, 255, 255])
+        mask1 = cv2.inRange(hsv, lower_red, upper_red)
+
+        lower_red = np.array([170, 50, 50])
+        upper_red = np.array([180, 255, 255])
+        mask2 = cv2.inRange(hsv, lower_red, upper_red)
+
+        mask = mask1 + mask2
+
+        # Find contours
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area > 500:  # Filter small contours
+                # Calculate bounding box
+                x, y, w, h = cv2.boundingRect(contour)
+
+                # Create detection object
+                detection = {
+                    'x': x,
+                    'y': y,
+                    'width': w,
+                    'height': h,
+                    'area': area,
+                    'center_x': x + w // 2,
+                    'center_y': y + h // 2
+                }
+
+                detected_objects.append(detection)
+
+        return detected_objects
+
+    def ai_decision_loop(self):
+        """
+        Main AI decision-making loop.
+        """
+        if self.current_state == 'IDLE':
+            # Look for objects to manipulate
+            self.search_for_objects()
+        elif self.current_state == 'NAVIGATING':
+            # Check navigation progress
+            self.check_navigation_status()
+        elif self.current_state == 'MANIPULATING':
+            # Check manipulation progress
+            self.check_manipulation_status()
+        elif self.current_state == 'SEARCHING':
+            # Continue searching for objects
+            self.continue_search()
+
+    def search_for_objects(self):
+        """
+        Search for objects to manipulate.
+        """
+        if self.object_detections:
+            # Select the most interesting object (largest area in this example)
+            best_detection = max(self.object_detections, key=lambda x: x['area'])
+            self.target_object = best_detection
+
+            self.get_logger().info(f'Found target object at ({best_detection["center_x"]}, {best_detection["center_y"]})')
+
+            # Calculate navigation goal based on object position
+            navigation_goal = self.calculate_navigation_goal(best_detection)
+
+            # Start navigation to object
+            self.navigate_to_object(navigation_goal)
+        else:
+            self.get_logger().info('No objects detected, searching...')
+            self.current_state = 'SEARCHING'
+            # Send command to move robot in search pattern
+            self.execute_search_pattern()
+
+    def calculate_navigation_goal(self, detection):
+        """
+        Calculate navigation goal based on object detection.
+        """
+        # This is a simplified calculation
+        # In practice, you would use camera calibration and geometry
+        # to convert pixel coordinates to world coordinates
+
+        # For this example, we'll create a simple goal
+        goal_pose = PoseStamped()
+        goal_pose.header.frame_id = 'map'
+        goal_pose.header.stamp = self.get_clock().now().to_msg()
+
+        # Calculate relative position based on detection center
+        # This would require camera calibration in practice
+        goal_pose.pose.position.x = 1.0  # Example position
+        goal_pose.pose.position.y = 0.5  # Example position
+        goal_pose.pose.position.z = 0.0
+
+        # Simple orientation (facing forward)
+        goal_pose.pose.orientation.w = 1.0
+
+        return goal_pose
+
+    def navigate_to_object(self, goal_pose):
+        """
+        Navigate to the target object using navigation action.
+        """
+        if not self.nav_client.wait_for_server(timeout_sec=1.0):
+            self.get_logger().error('Navigation server not available')
+            return
+
+        goal_msg = NavigateToPose.Goal()
+        goal_msg.pose = goal_pose
+
+        self._send_goal_future = self.nav_client.send_goal_async(
+            goal_msg,
+            feedback_callback=self.navigation_feedback_callback)
+
+        self._send_goal_future.add_done_callback(self.navigation_goal_response_callback)
+
+        self.current_state = 'NAVIGATING'
+        self.get_logger().info('Navigation goal sent')
+
+    def navigation_goal_response_callback(self, future):
+        """
+        Handle navigation goal response.
+        """
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().info('Navigation goal rejected')
+            self.current_state = 'IDLE'
+            return
+
+        self.get_logger().info('Navigation goal accepted')
+
+        self._get_result_future = goal_handle.get_result_async()
+        self._get_result_future.add_done_callback(self.navigation_result_callback)
+
+    def navigation_feedback_callback(self, feedback_msg):
+        """
+        Handle navigation feedback.
+        """
+        self.get_logger().info(f'Navigation progress: {feedback_msg.feedback}')
+
+    def navigation_result_callback(self, future):
+        """
+        Handle navigation result.
+        """
+        result = future.result().result
+        self.get_logger().info(f'Navigation completed: {result}')
+
+        if self.current_state == 'NAVIGATING':
+            # Navigation completed, start manipulation
+            self.start_manipulation()
+
+    def start_manipulation(self):
+        """
+        Start manipulation of the target object.
+        """
+        if not self.manipulation_client.wait_for_server(timeout_sec=1.0):
+            self.get_logger().error('Manipulation server not available')
+            self.current_state = 'IDLE'
+            return
+
+        # Create manipulation goal (example: pick up object)
+        goal_msg = FollowJointTrajectory.Goal()
+        goal_msg.trajectory = self.create_grasp_trajectory()
+
+        self._manip_goal_future = self.manipulation_client.send_goal_async(
+            goal_msg,
+            feedback_callback=self.manipulation_feedback_callback)
+
+        self._manip_goal_future.add_done_callback(self.manipulation_goal_response_callback)
+
+        self.current_state = 'MANIPULATING'
+        self.get_logger().info('Manipulation goal sent')
+
+    def create_grasp_trajectory(self):
+        """
+        Create a trajectory for grasping an object.
+        """
+        trajectory = JointTrajectory()
+        trajectory.joint_names = ['joint1', 'joint2', 'joint3', 'joint4']
+
+        # Create trajectory points for grasping
+        point1 = JointTrajectoryPoint()
+        point1.positions = [0.0, 0.0, 0.0, 0.0]  # Initial position
+        point1.time_from_start.sec = 1
+        trajectory.points.append(point1)
+
+        point2 = JointTrajectoryPoint()
+        point2.positions = [0.5, 0.3, -0.2, 0.0]  # Approach position
+        point2.time_from_start.sec = 3
+        trajectory.points.append(point2)
+
+        point3 = JointTrajectoryPoint()
+        point3.positions = [0.5, 0.3, -0.2, 0.5]  # Close gripper
+        point3.time_from_start.sec = 4
+        trajectory.points.append(point3)
+
+        point4 = JointTrajectoryPoint()
+        point4.positions = [0.3, 0.1, 0.1, 0.5]  # Lift position
+        point4.time_from_start.sec = 6
+        trajectory.points.append(point4)
+
+        return trajectory
+
+    def manipulation_feedback_callback(self, feedback_msg):
+        """
+        Handle manipulation feedback.
+        """
+        self.get_logger().info(f'Manipulation feedback: {feedback_msg.feedback}')
+
+    def manipulation_goal_response_callback(self, future):
+        """
+        Handle manipulation goal response.
+        """
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().info('Manipulation goal rejected')
+            self.current_state = 'IDLE'
+            return
+
+        self.get_logger().info('Manipulation goal accepted')
+
+        self._manip_result_future = goal_handle.get_result_async()
+        self._manip_result_future.add_done_callback(self.manipulation_result_callback)
+
+    def manipulation_result_callback(self, future):
+        """
+        Handle manipulation result.
+        """
+        result = future.result().result
+        self.get_logger().info(f'Manipulation completed: {result}')
+
+        if self.current_state == 'MANIPULATING':
+            # Manipulation completed, return to idle
+            self.current_state = 'IDLE'
+            self.get_logger().info('Object manipulation completed, returning to idle')
+
+    def check_navigation_status(self):
+        """
+        Check navigation status and handle timeouts.
+        """
+        # This would check if navigation is still in progress
+        # and handle any issues
+        pass
+
+    def check_manipulation_status(self):
+        """
+        Check manipulation status and handle timeouts.
+        """
+        # This would check if manipulation is still in progress
+        # and handle any issues
+        pass
+
+    def execute_search_pattern(self):
+        """
+        Execute a search pattern to find objects.
+        """
+        # Send velocity commands for a search pattern
+        msg = Twist()
+        msg.linear.x = 0.2  # Move forward slowly
+        msg.angular.z = 0.1  # Slow rotation
+        self.cmd_vel_publisher.publish(msg)
+
+    def continue_search(self):
+        """
+        Continue searching for objects.
+        """
+        # Continue search pattern
+        self.execute_search_pattern()
+
+        # Check if we've been searching too long
+        # and return to idle if no objects found
+        pass
+
+    def stop_robot(self):
+        """
+        Stop robot movement immediately.
+        """
+        stop_msg = Twist()
+        self.cmd_vel_publisher.publish(stop_msg)
+        self.get_logger().info('Robot stopped')
+
+
+def main(args=None):
+    """
+    Main function to run the AI object manipulation system.
+    """
+    rclpy.init(args=args)
+    ai_system = AIObjectManipulationSystem()
+
+    try:
+        rclpy.spin(ai_system)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        ai_system.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+```
+
+## Example 2: AI-Driven Multi-Robot Coordination System
+
+### Scenario
+Multiple robots coordinate to achieve a common goal, with an AI agent orchestrating their activities through ROS 2 communication.
+
+### System Architecture
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   AI Coordinator│    │   Robot 1       │    │   Robot 2       │
+│                 │    │                 │    │                 │
+│  ┌───────────┐  │    │  ┌───────────┐  │    │  ┌───────────┐  │
+│  │Task       │  │    │  │Navigation │  │    │  │Navigation │  │
+│  │Scheduler  │──┼────┼──┤Controller │──┼────┼──┤Controller │──┼──┐
+│  │           │  │    │  │           │  │    │  │           │  │  │
+│  └───────────┘  │    │  └───────────┘  │    │  └───────────┘  │  │
+│                 │    │                 │    │                 │  │
+│  ┌───────────┐  │    │  ┌───────────┐  │    │  ┌───────────┐  │  │
+│  │Resource   │  │    │  │Manipulator│  │    │  │Manipulator│  │  │
+│  │Manager    │──┼────┼──┤Controller │──┼────┼──┤Controller │──┼──┤
+│  │           │  │    │  │           │  │    │  │           │  │  │
+│  └───────────┘  │    │  └───────────┘  │    │  └───────────┘  │  │
+│                 │    │                 │    │                 │  │
+│  ┌───────────┐  │    │  ┌───────────┐  │    │  ┌───────────┐  │  │
+│  │State      │  │    │  │Sensor     │  │    │  │Sensor     │  │  │
+│  │Monitor    │◄─┼────┼──┤Fusion     │◄─┼────┼──┤Fusion     │◄─┼──┤
+│  │           │  │    │  │           │  │    │  │           │  │  │
+│  └───────────┘  │    │  └───────────┘  │    │  └───────────┘  │  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘  │
+                                                                 │
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐ │
+│   Robot 3       │    │   Robot 4       │    │   Communication │ │
+│                 │    │                 │    │   Middleware    │◄┘
+│  ┌───────────┐  │    │  ┌───────────┐  │    │                 │
+│  │Navigation │  │    │  │Navigation │  │    │  ┌───────────┐  │
+│  │Controller │──┼────┼──┤Controller │──┼────┼──┤ROS 2      │  │
+│  │           │  │    │  │           │  │    │  │Middleware  │  │
+│  └───────────┘  │    │  └───────────┘  │    │  │           │  │
+│                 │    │                 │    │  └───────────┘  │
+│  ┌───────────┐  │    │  ┌───────────┐  │    │                 │
+│  │Manipulator│  │    │  │Manipulator│  │    │                 │
+│  │Controller │──┼────┼──┤Controller │──┼────┤                 │
+│  │           │  │    │  │           │  │    │                 │
+│  └───────────┘  │    │  └───────────┘  │    │                 │
+│                 │    │                 │    │                 │
+│  ┌───────────┐  │    │  ┌───────────┐  │    │                 │
+│  │Sensor     │  │    │  │Sensor     │  │    │                 │
+│  │Fusion     │◄─┼────┼──┤Fusion     │◄─┼────┤                 │
+│  │           │  │    │  │           │  │    │                 │
+│  └───────────┘  │    │  └───────────┘  │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### Implementation Code
+
+```python
+#!/usr/bin/env python3
+"""
+AI-Driven Multi-Robot Coordination System
+
+This node coordinates multiple robots to achieve a common goal
+using ROS 2 communication patterns.
+"""
+
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+
+from std_msgs.msg import String, Int32
+from geometry_msgs.msg import PoseStamped, Point
+from nav_msgs.msg import Odometry
+from builtin_interfaces.msg import Time
+
+from enum import Enum
+import json
+import uuid
+from typing import Dict, List, Optional
+
+
+class RobotState(Enum):
+    IDLE = "idle"
+    NAVIGATING = "navigating"
+    MANIPULATING = "manipulating"
+    CHARGING = "charging"
+    ERROR = "error"
+
+
+class TaskType(Enum):
+    NAVIGATION = "navigation"
+    MANIPULATION = "manipulation"
+    EXPLORATION = "exploration"
+    TRANSPORT = "transport"
+    CHARGING = "charging"
+
+
+class Task:
+    """
+    Represents a task to be assigned to a robot.
+    """
+
+    def __init__(self, task_id: str, task_type: TaskType, target_pose: PoseStamped,
+                 priority: int = 1, assigned_robot: str = None):
+        self.id = task_id
+        self.type = task_type
+        self.target_pose = target_pose
+        self.priority = priority
+        self.assigned_robot = assigned_robot
+        self.status = "pending"  # pending, assigned, in_progress, completed, failed
+        self.created_time = Time()
+        self.assigned_time = None
+        self.completed_time = None
+
+
+class RobotInfo:
+    """
+    Information about a robot in the system.
+    """
+
+    def __init__(self, robot_id: str):
+        self.id = robot_id
+        self.state = RobotState.IDLE
+        self.position = Point()
+        self.battery_level = 100.0
+        self.task_queue = []
+        self.current_task = None
+        self.last_update_time = Time()
+        self.capabilities = []  # List of capabilities (navigation, manipulation, etc.)
+        self.assigned_tasks = []
+
+
+class AIOrchestrator(Node):
+    """
+    AI system that orchestrates multiple robots to achieve common goals.
+    """
+
+    def __init__(self):
+        super().__init__('ai_orchestrator')
+
+        # QoS profile for coordination messages
+        qos_profile = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.VOLATILE,
+            depth=20
+        )
+
+        # Publishers for commanding robots
+        self.command_publishers = {}
+
+        # Subscribers for robot status
+        self.status_subscribers = {}
+
+        # Publishers for coordination information
+        self.task_status_publisher = self.create_publisher(
+            String, '/ai_orchestrator/task_status', qos_profile)
+        self.robot_status_publisher = self.create_publisher(
+            String, '/ai_orchestrator/robot_status', qos_profile)
+
+        # Timer for coordination logic
+        self.coordination_timer = self.create_timer(0.5, self.coordination_loop)
+
+        # Data structures for coordination
+        self.robots: Dict[str, RobotInfo] = {}
+        self.tasks: Dict[str, Task] = {}
+        self.task_queue: List[str] = []  # Queue of task IDs ordered by priority
+
+        # Initialize system
+        self.initialize_robots()
+        self.create_sample_tasks()
+
+        self.get_logger().info('AI Multi-Robot Orchestrator initialized')
+
+    def initialize_robots(self):
+        """
+        Initialize known robots in the system.
+        """
+        # Create robot info for known robots
+        for i in range(1, 5):  # Robot1 to Robot4
+            robot_id = f'robot{i}'
+            robot_info = RobotInfo(robot_id)
+
+            # Assign capabilities based on robot number
+            if i <= 2:  # Robots 1-2 have navigation and manipulation
+                robot_info.capabilities = ['navigation', 'manipulation']
+            else:  # Robots 3-4 have navigation only
+                robot_info.capabilities = ['navigation']
+
+            self.robots[robot_id] = robot_info
+
+            # Create publishers and subscribers for this robot
+            cmd_topic = f'/{robot_id}/command'
+            status_topic = f'/{robot_id}/status'
+
+            self.command_publishers[robot_id] = self.create_publisher(
+                String, cmd_topic, 10)
+            self.status_subscribers[robot_id] = self.create_subscription(
+                String, status_topic,
+                lambda msg, robot_id=robot_id: self.robot_status_callback(msg, robot_id),
+                10)
+
+    def create_sample_tasks(self):
+        """
+        Create sample tasks for demonstration.
+        """
+        # Create several sample tasks
+        for i in range(5):
+            task_id = f'task_{uuid.uuid4().hex[:8]}'
+
+            # Create a sample target pose
+            target_pose = PoseStamped()
+            target_pose.header.frame_id = 'map'
+            target_pose.pose.position.x = i * 2.0  # Different positions
+            target_pose.pose.position.y = i * 1.0
+            target_pose.pose.position.z = 0.0
+            target_pose.pose.orientation.w = 1.0
+
+            # Different task types based on index
+            if i % 3 == 0:
+                task_type = TaskType.NAVIGATION
+            elif i % 3 == 1:
+                task_type = TaskType.MANIPULATION
+            else:
+                task_type = TaskType.EXPLORATION
+
+            # Priority based on index (lower index = higher priority)
+            priority = 5 - i
+
+            task = Task(task_id, task_type, target_pose, priority)
+            self.tasks[task_id] = task
+            self.task_queue.append(task_id)
+
+        # Sort task queue by priority (higher priority first)
+        self.task_queue.sort(key=lambda task_id: self.tasks[task_id].priority, reverse=True)
+
+        self.get_logger().info(f'Created {len(self.tasks)} sample tasks')
+
+    def robot_status_callback(self, msg, robot_id):
+        """
+        Handle status updates from robots.
+        """
+        try:
+            status_data = json.loads(msg.data)
+
+            if robot_id in self.robots:
+                robot = self.robots[robot_id]
+
+                # Update robot state
+                if 'state' in status_data:
+                    robot.state = RobotState(status_data['state'])
+
+                # Update position
+                if 'position' in status_data:
+                    pos = status_data['position']
+                    robot.position.x = pos['x']
+                    robot.position.y = pos['y']
+                    robot.position.z = pos['z']
+
+                # Update battery level
+                if 'battery_level' in status_data:
+                    robot.battery_level = status_data['battery_level']
+
+                # Update task status
+                if 'current_task' in status_data:
+                    robot.current_task = status_data['current_task']
+
+                # Update last update time
+                robot.last_update_time = self.get_clock().now().to_msg()
+
+                self.get_logger().info(f'Updated status for {robot_id}: {robot.state}')
+
+        except json.JSONDecodeError:
+            self.get_logger().error(f'Invalid JSON in status message from {robot_id}')
+        except Exception as e:
+            self.get_logger().error(f'Error processing status from {robot_id}: {e}')
+
+    def coordination_loop(self):
+        """
+        Main coordination loop that assigns tasks to robots.
+        """
+        self.update_task_assignments()
+        self.publish_status_updates()
+        self.handle_robot_availability()
+
+    def update_task_assignments(self):
+        """
+        Assign tasks to available robots based on capabilities and priorities.
+        """
+        # Find available robots (idle and with sufficient battery)
+        available_robots = [
+            robot_id for robot_id, robot in self.robots.items()
+            if robot.state == RobotState.IDLE and robot.battery_level > 20.0
+        ]
+
+        if not available_robots:
+            return
+
+        # Find unassigned tasks
+        unassigned_tasks = [
+            task_id for task_id, task in self.tasks.items()
+            if task.status == 'pending'
+        ]
+
+        # Sort unassigned tasks by priority
+        unassigned_tasks.sort(key=lambda task_id: self.tasks[task_id].priority, reverse=True)
+
+        # Assign tasks to robots
+        for task_id in unassigned_tasks:
+            task = self.tasks[task_id]
+
+            # Find a suitable robot for this task
+            suitable_robot = self.find_suitable_robot(task, available_robots)
+
+            if suitable_robot:
+                # Assign task to robot
+                self.assign_task_to_robot(task_id, suitable_robot)
+
+                # Remove robot from available list
+                available_robots.remove(suitable_robot)
+
+                # If no more available robots, break
+                if not available_robots:
+                    break
+
+    def find_suitable_robot(self, task: Task, available_robots: List[str]) -> Optional[str]:
+        """
+        Find the most suitable robot for a given task.
+        """
+        for robot_id in available_robots:
+            robot = self.robots[robot_id]
+
+            # Check if robot has required capabilities
+            required_capability = 'navigation'  # All tasks require navigation
+            if task.type == TaskType.MANIPULATION:
+                required_capability = 'manipulation'
+
+            if required_capability in robot.capabilities:
+                return robot_id
+
+        return None
+
+    def assign_task_to_robot(self, task_id: str, robot_id: str):
+        """
+        Assign a task to a robot and send the command.
+        """
+        task = self.tasks[task_id]
+        robot = self.robots[robot_id]
+
+        # Update task status
+        task.assigned_robot = robot_id
+        task.status = 'assigned'
+        task.assigned_time = self.get_clock().now().to_msg()
+
+        # Add task to robot's queue
+        robot.task_queue.append(task_id)
+        robot.current_task = task_id
+
+        # Send command to robot
+        command = {
+            'command': 'execute_task',
+            'task_id': task_id,
+            'task_type': task.type.value,
+            'target_pose': {
+                'position': {
+                    'x': task.target_pose.pose.position.x,
+                    'y': task.target_pose.pose.position.y,
+                    'z': task.target_pose.pose.position.z
+                },
+                'orientation': {
+                    'x': task.target_pose.pose.orientation.x,
+                    'y': task.target_pose.pose.orientation.y,
+                    'z': task.target_pose.pose.orientation.z,
+                    'w': task.target_pose.pose.orientation.w
+                }
+            }
+        }
+
+        command_msg = String()
+        command_msg.data = json.dumps(command)
+        self.command_publishers[robot_id].publish(command_msg)
+
+        self.get_logger().info(f'Assigned task {task_id} to robot {robot_id}')
+
+    def handle_robot_availability(self):
+        """
+        Handle robot availability and task completion.
+        """
+        for robot_id, robot in self.robots.items():
+            # Check if robot has completed its current task
+            if robot.current_task and robot.state == RobotState.IDLE:
+                # Mark task as completed
+                if robot.current_task in self.tasks:
+                    completed_task = self.tasks[robot.current_task]
+                    completed_task.status = 'completed'
+                    completed_task.completed_time = self.get_clock().now().to_msg()
+
+                    # Remove from robot's task queue
+                    if robot.current_task in robot.task_queue:
+                        robot.task_queue.remove(robot.current_task)
+
+                    robot.current_task = None
+
+                    self.get_logger().info(f'Task {completed_task.id} completed by {robot_id}')
+
+    def publish_status_updates(self):
+        """
+        Publish overall system status updates.
+        """
+        # Publish task status
+        task_status = {
+            'timestamp': self.get_clock().now().to_msg(),
+            'tasks': {
+                task_id: {
+                    'status': task.status,
+                    'assigned_robot': task.assigned_robot,
+                    'type': task.type.value,
+                    'priority': task.priority
+                }
+                for task_id, task in self.tasks.items()
+            }
+        }
+
+        task_status_msg = String()
+        task_status_msg.data = json.dumps(task_status)
+        self.task_status_publisher.publish(task_status_msg)
+
+        # Publish robot status
+        robot_status = {
+            'timestamp': self.get_clock().now().to_msg(),
+            'robots': {
+                robot_id: {
+                    'state': robot.state.value,
+                    'position': {
+                        'x': robot.position.x,
+                        'y': robot.position.y,
+                        'z': robot.position.z
+                    },
+                    'battery_level': robot.battery_level,
+                    'current_task': robot.current_task,
+                    'task_queue_size': len(robot.task_queue)
+                }
+                for robot_id, robot in self.robots.items()
+            }
+        }
+
+        robot_status_msg = String()
+        robot_status_msg.data = json.dumps(robot_status)
+        self.robot_status_publisher.publish(robot_status_msg)
+
+
+def main(args=None):
+    """
+    Main function to run the AI orchestrator.
+    """
+    rclpy.init(args=args)
+    orchestrator = AIOrchestrator()
+
+    try:
+        rclpy.spin(orchestrator)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        orchestrator.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+```
+
+## Example 3: AI-ROS Integration with Safety Monitoring
+
+### Scenario
+An AI system that integrates with ROS 2 while maintaining safety constraints and monitoring robot behavior.
+
+### Implementation Code
+
+```python
+#!/usr/bin/env python3
+"""
+AI-ROS Integration with Safety Monitoring
+
+This node demonstrates safe integration of AI agents with ROS 2,
+including safety monitoring and constraint enforcement.
+"""
+
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, RelabilityPolicy, DurabilityPolicy
+
+from geometry_msgs.msg import Twist, PoseStamped
+from sensor_msgs.msg import LaserScan, Imu
+from std_msgs.msg import String, Float64
+from builtin_interfaces.msg import Time
+
+import math
+from enum import Enum
+from typing import Dict, List, Tuple
+
+
+class SafetyLevel(Enum):
+    SAFE = "safe"
+    WARNING = "warning"
+    DANGEROUS = "dangerous"
+    EMERGENCY = "emergency"
+
+
+class SafetyConstraint:
+    """
+    Represents a safety constraint that must be enforced.
+    """
+
+    def __init__(self, name: str, check_function, severity: SafetyLevel,
+                 description: str = ""):
+        self.name = name
+        self.check_function = check_function
+        self.severity = severity
+        self.description = description
+
+    def check(self, *args, **kwargs):
+        """
+        Check if the constraint is satisfied.
+        Returns (is_valid, message).
+        """
+        return self.check_function(*args, **kwargs)
+
+
+class SafetyMonitor(Node):
+    """
+    Monitors robot safety and enforces constraints.
+    """
+
+    def __init__(self):
+        super().__init__('safety_monitor')
+
+        # QoS profiles
+        qos_sensor = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.VOLATILE,
+            depth=10
+        )
+        qos_command = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.VOLATILE,
+            depth=10
+        )
+
+        # Publishers
+        self.safety_status_publisher = self.create_publisher(
+            String, '/safety_monitor/status', qos_command)
+        self.emergency_stop_publisher = self.create_publisher(
+            String, '/emergency_stop', qos_command)
+
+        # Subscribers
+        self.laser_subscriber = self.create_subscription(
+            LaserScan, '/scan', self.laser_callback, qos_sensor)
+        self.imu_subscriber = self.create_subscription(
+            Imu, '/imu', self.imu_callback, qos_sensor)
+        self.odom_subscriber = self.create_subscription(
+            String, '/ai_commands', self.ai_command_callback, qos_command)
+
+        # Safety constraint enforcement
+        self.command_subscriber = self.create_subscription(
+            Twist, '/cmd_vel_raw', self.command_callback, qos_command)
+        self.command_publisher = self.create_publisher(
+            Twist, '/cmd_vel', qos_command)
+
+        # Safety state
+        self.laser_data = None
+        self.imu_data = None
+        self.safety_constraints = []
+        self.current_safety_level = SafetyLevel.SAFE
+        self.emergency_active = False
+
+        # Timer for safety monitoring
+        self.safety_timer = self.create_timer(0.1, self.safety_check_loop)  # 10 Hz
+
+        # Initialize safety constraints
+        self.initialize_safety_constraints()
+
+        self.get_logger().info('Safety Monitor initialized')
+
+    def initialize_safety_constraints(self):
+        """
+        Initialize safety constraints for the system.
+        """
+        # Obstacle proximity constraint
+        obstacle_constraint = SafetyConstraint(
+            name="obstacle_proximity",
+            check_function=self.check_obstacle_proximity,
+            severity=SafetyLevel.WARNING,
+            description="Maintain safe distance from obstacles"
+        )
+        self.safety_constraints.append(obstacle_constraint)
+
+        # Velocity limit constraint
+        velocity_constraint = SafetyConstraint(
+            name="velocity_limit",
+            check_function=self.check_velocity_limit,
+            severity=SafetyLevel.DANGEROUS,
+            description="Limit robot velocity to safe values"
+        )
+        self.safety_constraints.append(velocity_constraint)
+
+        # Acceleration limit constraint
+        acceleration_constraint = SafetyConstraint(
+            name="acceleration_limit",
+            check_function=self.check_acceleration_limit,
+            severity=SafetyLevel.DANGEROUS,
+            description="Limit robot acceleration to safe values"
+        )
+        self.safety_constraints.append(acceleration_constraint)
+
+        # IMU safety constraint
+        imu_constraint = SafetyConstraint(
+            name="imu_safety",
+            check_function=self.check_imu_safety,
+            severity=SafetyLevel.EMERGENCY,
+            description="Monitor IMU for dangerous conditions"
+        )
+        self.safety_constraints.append(imu_constraint)
+
+    def laser_callback(self, msg):
+        """
+        Handle laser scan data for obstacle detection.
+        """
+        self.laser_data = msg
+
+    def imu_callback(self, msg):
+        """
+        Handle IMU data for safety monitoring.
+        """
+        self.imu_data = msg
+
+    def ai_command_callback(self, msg):
+        """
+        Handle AI commands that need safety filtering.
+        """
+        try:
+            command_data = msg.data
+            # In a real system, this would parse AI commands
+            # and potentially modify them for safety
+            self.get_logger().info(f'AI command received: {command_data}')
+        except Exception as e:
+            self.get_logger().error(f'Error processing AI command: {e}')
+
+    def command_callback(self, msg):
+        """
+        Handle raw velocity commands that need safety filtering.
+        """
+        if self.emergency_active:
+            # Publish zero velocity if emergency is active
+            stop_msg = Twist()
+            self.command_publisher.publish(stop_msg)
+            return
+
+        # Check if command is safe
+        is_safe, filtered_command = self.filter_command_for_safety(msg)
+
+        if is_safe:
+            self.command_publisher.publish(filtered_command)
+        else:
+            # Command was unsafe, publish stop command
+            stop_msg = Twist()
+            self.command_publisher.publish(stop_msg)
+            self.get_logger().warn('Unsafe command filtered, robot stopped')
+
+    def filter_command_for_safety(self, command: Twist) -> Tuple[bool, Twist]:
+        """
+        Filter a command for safety before execution.
+        Returns (is_safe, filtered_command).
+        """
+        # Apply safety constraints to the command
+        filtered_command = Twist()
+        filtered_command.linear = command.linear
+        filtered_command.angular = command.angular
+
+        # Check each safety constraint
+        for constraint in self.safety_constraints:
+            is_valid, message = constraint.check(command, self.laser_data, self.imu_data)
+
+            if not is_valid:
+                # Apply constraint-specific filtering
+                if constraint.name == "obstacle_proximity":
+                    # Reduce velocity based on obstacle proximity
+                    min_range = min(self.laser_data.ranges) if self.laser_data else float('inf')
+                    if min_range < 1.0:  # If obstacle is closer than 1m
+                        # Scale down velocity based on distance
+                        scale_factor = min_range / 1.0
+                        filtered_command.linear.x *= scale_factor
+                        filtered_command.angular.z *= scale_factor
+                elif constraint.name == "velocity_limit":
+                    # Limit velocity to safe values
+                    max_linear = 0.5  # m/s
+                    max_angular = 0.5  # rad/s
+
+                    filtered_command.linear.x = max(-max_linear, min(max_linear, filtered_command.linear.x))
+                    filtered_command.angular.z = max(-max_angular, min(max_angular, filtered_command.angular.z))
+
+        # Check if filtered command is still safe
+        all_safe = True
+        for constraint in self.safety_constraints:
+            is_valid, message = constraint.check(filtered_command, self.laser_data, self.imu_data)
+            if not is_valid and constraint.severity in [SafetyLevel.DANGEROUS, SafetyLevel.EMERGENCY]:
+                all_safe = False
+                break
+
+        return all_safe, filtered_command
+
+    def safety_check_loop(self):
+        """
+        Main safety monitoring loop.
+        """
+        if self.emergency_active:
+            return
+
+        # Check all safety constraints
+        highest_severity = SafetyLevel.SAFE
+        safety_messages = []
+
+        for constraint in self.safety_constraints:
+            is_valid, message = constraint.check(None, self.laser_data, self.imu_data)
+
+            if not is_valid:
+                safety_messages.append(f"{constraint.name}: {message}")
+
+                if constraint.severity.value > highest_severity.value:
+                    highest_severity = constraint.severity
+
+        # Update safety level
+        self.current_safety_level = highest_severity
+
+        # Take appropriate action based on safety level
+        if highest_severity == SafetyLevel.EMERGENCY:
+            self.trigger_emergency_stop()
+        elif highest_severity == SafetyLevel.DANGEROUS:
+            self.trigger_dangerous_state()
+        elif highest_severity == SafetyLevel.WARNING:
+            self.trigger_warning_state()
+        else:
+            self.clear_emergency()
+
+        # Publish safety status
+        self.publish_safety_status(safety_messages)
+
+    def check_obstacle_proximity(self, command, laser_data, imu_data):
+        """
+        Check if robot is too close to obstacles.
+        """
+        if laser_data is None:
+            return True, "No laser data available"
+
+        min_range = min(laser_data.ranges)
+
+        if min_range < 0.3:  # Dangerous proximity
+            return False, f"Obstacle too close: {min_range:.2f}m"
+        elif min_range < 0.5:  # Warning proximity
+            return False, f"Obstacle close: {min_range:.2f}m"
+        else:
+            return True, "Safe distance from obstacles"
+
+    def check_velocity_limit(self, command, laser_data, imu_data):
+        """
+        Check if velocity commands are within safe limits.
+        """
+        if command is None:
+            return True, "No command to check"
+
+        max_linear = 1.0  # m/s
+        max_angular = 1.0  # rad/s
+
+        if abs(command.linear.x) > max_linear or abs(command.angular.z) > max_angular:
+            return False, f"Velocity exceeds limits: linear={command.linear.x}, angular={command.angular.z}"
+        else:
+            return True, "Velocity within safe limits"
+
+    def check_acceleration_limit(self, command, laser_data, imu_data):
+        """
+        Check if acceleration is within safe limits.
+        """
+        # This would require comparing with previous command
+        # For simplicity, we'll return True here
+        return True, "Acceleration check passed"
+
+    def check_imu_safety(self, command, laser_data, imu_data):
+        """
+        Check IMU data for dangerous conditions.
+        """
+        if imu_data is None:
+            return True, "No IMU data available"
+
+        # Check for excessive angular velocity (could indicate instability)
+        angular_vel_threshold = 5.0  # rad/s
+
+        ang_vel_mag = math.sqrt(
+            imu_data.angular_velocity.x**2 +
+            imu_data.angular_velocity.y**2 +
+            imu_data.angular_velocity.z**2
+        )
+
+        if ang_vel_mag > angular_vel_threshold:
+            return False, f"Excessive angular velocity: {ang_vel_mag:.2f} rad/s"
+        else:
+            return True, "IMU data within safe limits"
+
+    def trigger_emergency_stop(self):
+        """
+        Trigger emergency stop.
+        """
+        if not self.emergency_active:
+            self.emergency_active = True
+            self.get_logger().error('EMERGENCY STOP ACTIVATED')
+
+            # Publish emergency stop command
+            emergency_msg = String()
+            emergency_msg.data = 'EMERGENCY_STOP'
+            self.emergency_stop_publisher.publish(emergency_msg)
+
+    def trigger_dangerous_state(self):
+        """
+        Handle dangerous state.
+        """
+        self.get_logger().warn('DANGEROUS state detected')
+
+    def trigger_warning_state(self):
+        """
+        Handle warning state.
+        """
+        self.get_logger().info('WARNING state detected')
+
+    def clear_emergency(self):
+        """
+        Clear emergency state.
+        """
+        if self.emergency_active:
+            self.emergency_active = False
+            self.get_logger().info('Emergency cleared, resuming normal operation')
+
+    def publish_safety_status(self, messages):
+        """
+        Publish current safety status.
+        """
+        status = {
+            'timestamp': self.get_clock().now().to_msg(),
+            'safety_level': self.current_safety_level.value,
+            'emergency_active': self.emergency_active,
+            'messages': messages
+        }
+
+        status_msg = String()
+        status_msg.data = str(status)  # In practice, use proper serialization
+        self.safety_status_publisher.publish(status_msg)
+
+
+def main(args=None):
+    """
+    Main function to run the safety monitor.
+    """
+    rclpy.init(args=args)
+    safety_monitor = SafetyMonitor()
+
+    try:
+        rclpy.spin(safety_monitor)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        safety_monitor.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+```
+
+## Best Practices Demonstrated
+
+### 1. Modular Design
+- Each example demonstrates modular design with clear separation of concerns
+- Components are designed to work independently but integrate seamlessly
+
+### 2. Error Handling
+- Proper error handling and logging throughout all examples
+- Graceful degradation when components fail
+
+### 3. Safety Considerations
+- Safety monitoring and constraint enforcement in the third example
+- Emergency stop capabilities and safety state management
+
+### 4. Communication Patterns
+- Use of appropriate communication patterns for different scenarios
+- Topic-based for continuous data, service-based for discrete actions, action-based for long-running tasks
+
+### 5. Resource Management
+- Proper initialization and cleanup of resources
+- Efficient use of QoS settings for different data types
+
+## Running the Examples
+
+To run these examples:
+
+1. **AI-Powered Object Manipulation System**:
+   ```bash
+   ros2 run my_package ai_object_manipulation_system
+   ```
+
+2. **AI-Driven Multi-Robot Coordination System**:
+   ```bash
+   ros2 run my_package ai_orchestrator
+   ```
+
+3. **AI-ROS Integration with Safety Monitoring**:
+   ```bash
+   ros2 run my_package safety_monitor
+   ```
+
+## Summary
+
+These practical examples demonstrate:
+
+1. **Real-world applications** of AI-ROS integration
+2. **Multiple communication patterns** working together
+3. **Safety considerations** in AI-robot systems
+4. **Scalability patterns** for multi-robot systems
+5. **Best practices** for robust system design
+
+Each example builds on the fundamental concepts covered in previous sections and demonstrates how to combine them into complete, functional systems.
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [How Python AI Agents Send Commands to ROS 2 Controllers](./ai-ros-integration) - Command sending patterns
+- [How Python AI Agents Receive Sensor Data](./message-passing) - Data receiving patterns
+- [Data Flow Diagrams](./data-flow-diagrams) - Communication architecture
+- [ROS 2 Architecture Understanding](../chapter-1/intro) - Communication patterns foundation
+- [Python ROS 2 Node Creation](../chapter-2/intro) - Node implementation basics

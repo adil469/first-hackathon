@@ -1,0 +1,33 @@
+---
+title: "Isaac ROS: Hardware-Accelerated Perception"
+---
+
+# Isaac ROS: Hardware-Accelerated Perception
+
+Isaac ROS bridges the gap between NVIDIA's GPU-accelerated computing and the Robot Operating System (ROS 2). It provides a collection of hardware-accelerated perception packages that leverage NVIDIA's GPUs for real-time processing.
+
+## Hardware-Accelerated VSLAM
+
+Visual Simultaneous Localization and Mapping (VSLAM) is a critical capability for autonomous robots. Isaac ROS provides hardware-accelerated VSLAM solutions that offer:
+
+- **Real-time Processing**: Leveraging GPU parallelism for frame rates suitable for navigation
+- **High Accuracy**: Combining visual and inertial measurements for robust localization
+- **Multi-sensor Fusion**: Integration of cameras, IMUs, and other sensors for enhanced performance
+
+The VSLAM pipeline typically includes:
+
+1. **Feature Detection**: Identifying distinctive points in visual input
+2. **Tracking**: Following features across frames to estimate motion
+3. **Mapping**: Building a 3D representation of the environment
+4. **Optimization**: Refining pose estimates and map consistency
+
+## Isaac ROS Acceleration Nodes
+
+Isaac ROS provides several accelerated nodes for different perception tasks:
+
+- **Detection and Classification**: Object detection and semantic segmentation
+- **Depth Estimation**: Stereo vision and depth completion
+- **Point Cloud Processing**: 3D data manipulation and analysis
+- **Sensor Processing**: Camera, LiDAR, and IMU data handling
+
+These nodes are optimized to run efficiently on NVIDIA hardware, providing significant performance improvements over CPU-only implementations. This acceleration is crucial for enabling complex perception tasks on robots with limited computational resources.

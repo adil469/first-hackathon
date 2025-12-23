@@ -1,0 +1,207 @@
+---
+sidebar_position: 4
+title: 'ROS 2 Topics - Publish/Subscribe Communication'
+keywords: [ros2, topics, publish-subscribe, communication, messaging]
+description: 'Understanding ROS 2 topics and the publish/subscribe communication pattern'
+---
+
+# ROS 2 Topics - Publish/Subscribe Communication
+
+## Learning Objectives
+
+After completing this section, you will be able to:
+- Explain the publish/subscribe communication pattern in ROS 2
+- Understand how topics enable asynchronous communication between nodes
+- Identify when to use topics vs other communication methods
+- Recognize the benefits and limitations of the topic communication pattern
+
+## Introduction to Topics
+
+In ROS 2, **topics** are the primary mechanism for asynchronous, one-way communication between nodes. The topic system implements the **publish/subscribe pattern**, where some nodes (publishers) send data to a topic, and other nodes (subscribers) receive that data.
+
+### The Publish/Subscribe Pattern
+
+The publish/subscribe pattern is a messaging pattern where:
+- **Publishers** send messages to a topic without knowing who will receive them
+- **Subscribers** receive messages from a topic without knowing who sent them
+- The communication is **asynchronous** - publishers and subscribers don't need to be synchronized
+
+This pattern decouples the sender and receiver, allowing for flexible system design.
+
+## How Topics Work
+
+### Topic Names
+Topics have unique names within the ROS 2 system, such as:
+- `/cmd_vel` - for sending velocity commands to a robot
+- `/camera/image_raw` - for publishing raw camera images
+- `/scan` - for publishing LIDAR scan data
+
+### Publishers
+A publisher node:
+1. Creates a publisher for a specific topic
+2. Sends messages to that topic at regular intervals or when events occur
+3. Doesn't need to know if any subscribers exist
+
+### Subscribers
+A subscriber node:
+1. Creates a subscription to a specific topic
+2. Receives messages from that topic as they arrive
+3. Doesn't need to know which publisher sent the message
+
+## Topic Communication Flow
+
+```
+Publisher Node A ──┐
+                    ├── Topic: /sensor_data ──┬── Subscriber Node X
+Publisher Node B ──┤                         │
+                    │                         ├── Subscriber Node Y
+Publisher Node C ──┘                         │
+                                            └── Subscriber Node Z
+```
+
+In this example:
+- Multiple publishers can send data to the same topic
+- Multiple subscribers can receive data from the same topic
+- All communication happens asynchronously
+
+## Message Types
+
+Every topic has a specific **message type** that defines the structure of data that can be sent. Common message types include:
+
+### Standard Message Types
+- `std_msgs/String` - For sending text
+- `std_msgs/Int32`, `std_msgs/Float64` - For sending numbers
+- `sensor_msgs/Image` - For sending camera images
+- `sensor_msgs/LaserScan` - For sending LIDAR data
+- `geometry_msgs/Twist` - For sending velocity commands
+
+### Custom Message Types
+You can also define your own message types for specific applications.
+
+## Quality of Service (QoS)
+
+ROS 2 provides Quality of Service settings that control how messages are delivered:
+
+### Reliability
+- **Reliable**: Every message will be delivered (if possible)
+- **Best Effort**: Messages may be lost, but delivery is faster
+
+### Durability
+- **Transient Local**: Late-joining subscribers receive the last message
+- **Volatile**: Late-joining subscribers don't receive old messages
+
+### History
+- **Keep Last**: Keep only the most recent messages
+- **Keep All**: Keep all messages (limited by memory)
+
+## Practical Example: Temperature Monitoring
+
+Consider a temperature monitoring system:
+
+```python
+# Publisher: temperature_sensor.py
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float64
+import random
+
+class TemperatureSensor(Node):
+    def __init__(self):
+        super().__init__('temperature_sensor')
+        self.publisher = self.create_publisher(Float64, 'temperature', 10)
+        timer_period = 1.0  # seconds
+        self.timer = self.create_timer(timer_period, self.publish_temperature)
+
+    def publish_temperature(self):
+        msg = Float64()
+        msg.data = 20.0 + random.uniform(-5.0, 5.0)  # Simulate temperature reading
+        self.publisher.publish(msg)
+        self.get_logger().info(f'Publishing: {msg.data}°C')
+
+# Subscriber: temperature_display.py
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float64
+
+class TemperatureDisplay(Node):
+    def __init__(self):
+        super().__init__('temperature_display')
+        self.subscription = self.create_subscription(
+            Float64,
+            'temperature',
+            self.listener_callback,
+            10)
+        self.subscription  # Prevent unused variable warning
+
+    def listener_callback(self, msg):
+        self.get_logger().info(f'Received temperature: {msg.data}°C')
+```
+
+In this example:
+- The `temperature_sensor` node publishes temperature readings to the `/temperature` topic
+- The `temperature_display` node subscribes to the `/temperature` topic to receive readings
+- Multiple display nodes could subscribe to the same topic to show the data in different ways
+
+## Benefits of Topic Communication
+
+### Decoupling
+- Publishers and subscribers don't need to know about each other
+- Components can be developed and tested independently
+- Easy to add or remove components without affecting others
+
+### Scalability
+- Multiple subscribers can receive the same data
+- Multiple publishers can contribute to the same topic
+- System can handle varying numbers of nodes
+
+### Asynchronous Operation
+- Publishers can operate at their own pace
+- Subscribers can process data at their own pace
+- No blocking between components
+
+## Limitations and Considerations
+
+### No Delivery Guarantees
+- Messages may be lost (especially with best-effort QoS)
+- No acknowledgment that messages were received
+
+### No Request/Response Pattern
+- Topics are one-way only
+- No direct way to request specific information
+
+### Message Ordering
+- Messages may not arrive in the order they were sent
+- This can be managed with timestamps in messages
+
+## When to Use Topics
+
+Topics are ideal for:
+- **Sensor data**: Camera images, LIDAR scans, IMU data
+- **Continuous streams**: Robot state, sensor readings
+- **Broadcasting**: When multiple nodes need the same information
+- **Real-time data**: When low latency is important
+
+## Summary
+
+Topics in ROS 2 implement the publish/subscribe pattern, allowing for asynchronous, decoupled communication between nodes. Publishers send messages to topics, and subscribers receive messages from topics. This pattern provides flexibility and scalability for robotic systems, making it ideal for sensor data, continuous streams, and broadcasting information to multiple nodes.
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [Introduction to ROS 2 Architecture](./intro) - Overview of the entire chapter
+- [ROS 2 Middleware](./middleware) - How topics fit into the middleware system
+- [ROS 2 Nodes](./nodes) - How nodes publish and subscribe to topics
+- [ROS 2 Services](./services) - Comparison with request/response communication
+- [Architecture Diagrams](./diagrams) - Visual representations of topic communication
+- [Integration Example](./integration-example) - Complete example with topic communication
+- [Validation Exercises](./exercises) - Practice problems on topic concepts
+
+## RAG Indexing Metadata
+
+<!-- @metadata:domain robotics -->
+<!-- @metadata:subdomain ros2 -->
+<!-- @metadata:concept topics -->
+<!-- @metadata:concept publish-subscribe -->
+<!-- @metadata:concept messaging -->
+<!-- @metadata:level beginner -->
+<!-- @metadata:prerequisites basic-python-knowledge -->

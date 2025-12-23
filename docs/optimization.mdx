@@ -1,0 +1,169 @@
+---
+sidebar_position: 100
+description: Image and asset optimization guidelines for faster loading
+---
+
+# Image and Asset Optimization
+
+## Overview
+This guide provides best practices for optimizing images and other assets to ensure fast loading times and better user experience for the AI-Native Book on Physical AI & Humanoid Robotics.
+
+## Image Optimization Guidelines
+
+### 1. Format Selection
+- **SVG**: Use for logos, diagrams, and vector graphics
+- **WebP**: Best for photographs and complex images (if browser support is acceptable)
+- **JPEG**: Good for photographs with many colors
+- **PNG**: Use for images with transparency or few colors
+- **GIF**: Only for simple animations
+
+### 2. Size and Dimensions
+- Resize images to their display size before uploading
+- Avoid using large images and scaling them down with CSS
+- Consider different sizes for different screen densities (1x, 2x, 3x)
+
+### 3. Compression Settings
+- JPEG: Use 80-85% quality for good balance of size and quality
+- PNG: Use tools like pngquant for lossless compression
+- SVG: Use tools like SVGO to remove unnecessary data
+
+## Asset Optimization Techniques
+
+### 1. Image Loading Strategies
+```html
+<!-- Use srcset for responsive images -->
+<img
+  src="image-800.jpg"
+  srcset="image-400.jpg 400w, image-800.jpg 800w, image-1200.jpg 1200w"
+  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+  alt="Description"
+/>
+```
+
+### 2. Lazy Loading
+Modern browsers support native lazy loading:
+```html
+<img src="image.jpg" loading="lazy" alt="Description" />
+```
+
+### 3. Critical Asset Loading
+- Inline critical CSS in the `<head>`
+- Preload critical resources:
+```html
+<link rel="preload" href="critical-font.woff2" as="font" type="font/woff2" crossorigin>
+```
+
+## Web Performance Optimization
+
+### 1. Bundle Optimization
+- Minimize JavaScript bundle size
+- Code split large components
+- Lazy load non-critical components
+
+### 2. Caching Strategies
+- Set appropriate cache headers for static assets
+- Use versioned filenames for cache busting
+- Implement service workers for offline capability
+
+### 3. Font Optimization
+- Preload critical fonts
+- Use font-display: swap for better loading
+- Limit the number of font variations
+
+## Tools for Optimization
+
+### Image Optimization Tools
+- **ImageOptim** (macOS): GUI tool for image compression
+- **TinyPNG**: Web-based PNG/JPEG optimization
+- **Squoosh**: Google's image compression web app
+- **SVGO**: SVG optimization tool
+- **Imagemagick**: Command-line image processing
+
+### Command Line Optimization Examples
+```bash
+# Optimize JPEG with ImageMagick
+convert input.jpg -quality 85 -strip output.jpg
+
+# Optimize PNG with pngquant
+pngquant --quality=65-80 --strip input.png
+
+# Optimize SVG with SVGO
+svgo input.svg -o output.svg
+```
+
+## Docusaurus-Specific Optimizations
+
+### 1. MDX Image Optimization
+```md
+<!-- Use Docusaurus's built-in image support -->
+import img from './path/to/image.jpg';
+
+![Alt text](img)
+
+<!-- Or for responsive images -->
+<img
+  src={require('./path/to/image.jpg').default}
+  alt="Description"
+  className="responsive-image"
+/>
+```
+
+### 2. Component Lazy Loading
+```javascript
+import { lazy, Suspense } from 'react';
+
+const HeavyComponent = lazy(() => import('./HeavyComponent'));
+
+function App() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HeavyComponent />
+    </Suspense>
+  );
+}
+```
+
+## Performance Monitoring
+
+### Key Metrics
+- **Largest Contentful Paint (LCP)**: Should be < 2.5s
+- **First Input Delay (FID)**: Should be < 100ms
+- **Cumulative Layout Shift (CLS)**: Should be < 0.1
+
+### Tools for Monitoring
+- **Lighthouse**: Built-in Chrome DevTools
+- **WebPageTest**: Detailed performance analysis
+- **GTmetrix**: Performance monitoring
+- **PageSpeed Insights**: Google's performance tool
+
+## Implementation Checklist
+
+- [ ] Images are compressed to appropriate quality
+- [ ] SVGs are optimized with SVGO
+- [ ] Images have appropriate dimensions for display
+- [ ] Critical CSS is inlined
+- [ ] Fonts are preloaded
+- [ ] Lazy loading is implemented for non-critical images
+- [ ] Bundle sizes are minimized
+- [ ] Caching headers are properly set
+
+## Testing Performance
+
+### Local Testing
+```bash
+# Build the site
+npm run build
+
+# Serve the build locally
+npm run serve
+
+# Test with Lighthouse
+# Use Chrome DevTools Audits tab
+```
+
+### Continuous Performance Monitoring
+Consider implementing performance budgets and monitoring in your CI/CD pipeline to prevent performance regressions.
+
+## Conclusion
+
+Optimizing images and assets is crucial for providing a fast, responsive experience for readers of this AI-Native book. Following these guidelines will help maintain optimal loading times while preserving the quality of technical diagrams and educational content.

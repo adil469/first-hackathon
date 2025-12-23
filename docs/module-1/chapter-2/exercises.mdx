@@ -1,0 +1,695 @@
+---
+sidebar_position: 9
+title: 'Validation Exercises - Python ROS 2 Node Creation'
+keywords: [ros2, python, rclpy, exercises, validation, practice, tutorial]
+description: 'Exercises to validate understanding of ROS 2 Python node creation with rclpy'
+---
+
+# Validation Exercises - Python ROS 2 Node Creation
+
+## Learning Objectives
+
+After completing these exercises, you will be able to:
+- Create various types of ROS 2 nodes in Python
+- Implement publishers, subscribers, services, and clients
+- Apply best practices for node structure and design
+- Debug and validate node functionality
+- Integrate nodes into larger ROS 2 systems
+
+## Exercise 1: Basic Publisher Node
+
+### Objective
+Create a publisher node that publishes the current time in seconds since epoch to a topic called `/current_time`.
+
+### Requirements
+- Topic name: `/current_time`
+- Message type: `std_msgs/Float64`
+- Publish rate: Every 1 second
+- Node name: `time_publisher`
+
+### Solution Template
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float64
+import time
+
+class TimePublisher(Node):
+    def __init__(self):
+        super().__init__('time_publisher')
+        # TODO: Create publisher for /current_time topic
+        # TODO: Create timer to publish every second
+
+    def publish_time(self):
+        # TODO: Create message with current time and publish it
+        pass
+
+def main(args=None):
+    # TODO: Initialize rclpy, create node, spin, and cleanup
+    pass
+```
+
+### Expected Output
+The node should publish the current time to the `/current_time` topic every second, visible with:
+```bash
+ros2 topic echo /current_time std_msgs/msg/Float64
+```
+
+### Solution
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float64
+import time
+
+class TimePublisher(Node):
+    def __init__(self):
+        super().__init__('time_publisher')
+        self.publisher = self.create_publisher(Float64, '/current_time', 10)
+        self.timer = self.create_timer(1.0, self.publish_time)
+        self.get_logger().info('Time Publisher Node Started')
+
+    def publish_time(self):
+        msg = Float64()
+        msg.data = time.time()
+        self.publisher.publish(msg)
+        self.get_logger().info(f'Published time: {msg.data}')
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = TimePublisher()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+## Exercise 2: Basic Subscriber Node
+
+### Objective
+Create a subscriber node that listens to the `/current_time` topic and logs the time difference from the previous message.
+
+### Requirements
+- Subscribe to: `/current_time`
+- Message type: `std_msgs/Float64`
+- Node name: `time_subscriber`
+- Store and compare previous time values
+
+### Solution Template
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float64
+
+class TimeSubscriber(Node):
+    def __init__(self):
+        super().__init__('time_subscriber')
+        # TODO: Create subscription to /current_time topic
+        # TODO: Initialize variable to store previous time
+
+    def time_callback(self, msg):
+        # TODO: Calculate and log time difference from previous message
+        pass
+
+def main(args=None):
+    # TODO: Initialize rclpy, create node, spin, and cleanup
+    pass
+```
+
+### Solution
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float64
+
+class TimeSubscriber(Node):
+    def __init__(self):
+        super().__init__('time_subscriber')
+        self.subscription = self.create_subscription(
+            Float64, '/current_time', self.time_callback, 10)
+        self.previous_time = None
+        self.get_logger().info('Time Subscriber Node Started')
+
+    def time_callback(self, msg):
+        current_time = msg.data
+
+        if self.previous_time is not None:
+            time_diff = current_time - self.previous_time
+            self.get_logger().info(f'Time difference: {time_diff:.3f}s')
+        else:
+            self.get_logger().info(f'First time received: {current_time}')
+
+        self.previous_time = current_time
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = TimeSubscriber()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+## Exercise 3: Simple Service Server
+
+### Objective
+Create a service server that calculates the square of a number. The service should be named `/square_number` and use the `example_interfaces/srv/Trigger` service type (adapt the request/response for number input/output).
+
+### Requirements
+- Service name: `/square_number` (or create custom service)
+- Since Trigger service doesn't have parameters, use a parameter approach
+- Node name: `square_service`
+- Calculate and return the square of a number
+
+### Solution Template
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import Trigger
+
+class SquareService(Node):
+    def __init__(self):
+        super().__init__('square_service')
+        # TODO: Create service server
+        self.number_to_square = 5.0  # Default number to square
+
+    def square_callback(self, request, response):
+        # TODO: Calculate square of stored number and return in response
+        pass
+
+def main(args=None):
+    # TODO: Initialize rclpy, create node, spin, and cleanup
+    pass
+```
+
+### Enhanced Solution (with parameter support)
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import Trigger
+from rcl_interfaces.msg import ParameterType
+from rclpy.parameter import Parameter
+
+class SquareService(Node):
+    def __init__(self):
+        super().__init__('square_service')
+        self.service = self.create_service(Trigger, 'square_number', self.square_callback)
+
+        # Declare parameter for the number to square
+        self.declare_parameter('number_to_square', 5.0)
+
+        self.get_logger().info('Square Service Started')
+
+    def square_callback(self, request, response):
+        number = self.get_parameter('number_to_square').value
+        result = number * number
+
+        response.success = True
+        response.message = f'Square of {number} is {result}'
+
+        self.get_logger().info(f'Calculated square: {number}^2 = {result}')
+        return response
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = SquareService()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+## Exercise 4: Simple Service Client
+
+### Objective
+Create a service client that calls the square service and prints the result.
+
+### Requirements
+- Call service: `/square_number`
+- Node name: `square_client`
+- Wait for service availability before making call
+
+### Solution Template
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import Trigger
+
+class SquareClient(Node):
+    def __init__(self):
+        super().__init__('square_client')
+        # TODO: Create service client
+        # TODO: Wait for service availability
+
+    def call_square_service(self):
+        # TODO: Create and send request, then handle response
+        pass
+
+def main(args=None):
+    # TODO: Initialize rclpy, create node, call service, and cleanup
+    pass
+```
+
+### Solution
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import Trigger
+
+class SquareClient(Node):
+    def __init__(self):
+        super().__init__('square_client')
+        self.cli = self.create_client(Trigger, 'square_number')
+
+        while not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Square service not available, waiting...')
+
+        self.req = Trigger.Request()
+
+    def call_square_service(self):
+        future = self.cli.call_async(self.req)
+        rclpy.spin_until_future_complete(self, future)
+
+        if future.result() is not None:
+            response = future.result()
+            self.get_logger().info(f'Service response: {response.message}')
+        else:
+            self.get_logger().error('Service call failed')
+
+def main(args=None):
+    rclpy.init(args=args)
+    client = SquareClient()
+
+    client.call_square_service()
+
+    client.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+## Exercise 5: Publisher-Subscriber Pair with Custom Message
+
+### Objective
+Create a publisher that publishes random temperature readings and a subscriber that logs high temperature warnings.
+
+### Requirements
+- Topic name: `/temperature_readings`
+- Message type: `std_msgs/Float64`
+- Publisher: Publish random temperatures between 15°C and 35°C every 2 seconds
+- Subscriber: Log warning if temperature > 30°C
+- Both nodes should run independently
+
+### Publisher Solution
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float64
+import random
+
+class TemperaturePublisher(Node):
+    def __init__(self):
+        super().__init__('temperature_publisher')
+        self.publisher = self.create_publisher(Float64, '/temperature_readings', 10)
+        self.timer = self.create_timer(2.0, self.publish_temperature)
+        self.get_logger().info('Temperature Publisher Started')
+
+    def publish_temperature(self):
+        msg = Float64()
+        msg.data = random.uniform(15.0, 35.0)
+        self.publisher.publish(msg)
+        self.get_logger().info(f'Published temperature: {msg.data:.2f}°C')
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = TemperaturePublisher()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+### Subscriber Solution
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float64
+
+class TemperatureSubscriber(Node):
+    def __init__(self):
+        super().__init__('temperature_subscriber')
+        self.subscription = self.create_subscription(
+            Float64, '/temperature_readings', self.temperature_callback, 10)
+        self.high_threshold = 30.0
+        self.get_logger().info('Temperature Subscriber Started')
+
+    def temperature_callback(self, msg):
+        temperature = msg.data
+        if temperature > self.high_threshold:
+            self.get_logger().warn(f'HIGH TEMPERATURE WARNING: {temperature:.2f}°C')
+        else:
+            self.get_logger().info(f'Temperature: {temperature:.2f}°C')
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = TemperatureSubscriber()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+## Exercise 6: Advanced Node with Multiple Publishers and Subscribers
+
+### Objective
+Create a node that acts as both a publisher and subscriber, implementing a simple "robot controller" that responds to commands.
+
+### Requirements
+- Subscribe to: `/robot_command` (String message) - commands like "forward", "backward", "stop"
+- Publish to: `/robot_status` (String message) - status like "moving_forward", "moving_backward", "stopped"
+- Publish to: `/robot_velocity` (Twist message) - velocity commands
+- Implement state machine logic for robot movement
+
+### Solution Template
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from geometry_msgs.msg import Twist
+
+class RobotController(Node):
+    def __init__(self):
+        super().__init__('robot_controller')
+        # TODO: Create subscriber for commands
+        # TODO: Create publishers for status and velocity
+        # TODO: Initialize robot state
+
+    def command_callback(self, msg):
+        # TODO: Process command and update robot state
+        # TODO: Publish appropriate status and velocity
+        pass
+
+def main(args=None):
+    # TODO: Initialize rclpy, create node, spin, and cleanup
+    pass
+```
+
+### Solution
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from geometry_msgs.msg import Twist
+
+class RobotController(Node):
+    def __init__(self):
+        super().__init__('robot_controller')
+
+        # Subscribers
+        self.command_sub = self.create_subscription(
+            String, '/robot_command', self.command_callback, 10)
+
+        # Publishers
+        self.status_pub = self.create_publisher(String, '/robot_status', 10)
+        self.velocity_pub = self.create_publisher(Twist, '/robot_velocity', 10)
+
+        # Robot state
+        self.current_state = "stopped"
+
+        self.get_logger().info('Robot Controller Started')
+
+    def command_callback(self, msg):
+        command = msg.data.lower()
+
+        # Create messages
+        status_msg = String()
+        velocity_msg = Twist()
+
+        if command == "forward":
+            self.current_state = "moving_forward"
+            velocity_msg.linear.x = 0.5  # Move forward at 0.5 m/s
+            status_msg.data = "moving_forward"
+
+        elif command == "backward":
+            self.current_state = "moving_backward"
+            velocity_msg.linear.x = -0.5  # Move backward at 0.5 m/s
+            status_msg.data = "moving_backward"
+
+        elif command == "stop" or command == "halt":
+            self.current_state = "stopped"
+            velocity_msg.linear.x = 0.0  # Stop
+            status_msg.data = "stopped"
+
+        else:
+            self.get_logger().warn(f'Unknown command: {command}')
+            return
+
+        # Publish messages
+        self.status_pub.publish(status_msg)
+        self.velocity_pub.publish(velocity_msg)
+
+        self.get_logger().info(f'Command: {command}, State: {self.current_state}')
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = RobotController()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+## Exercise 7: Testing Your Nodes
+
+### Objective
+Test all the nodes you created using ROS 2 command-line tools.
+
+### Testing Steps
+1. **Run publisher nodes**:
+   ```bash
+   python3 time_publisher.py
+   python3 temperature_publisher.py
+   ```
+
+2. **Run subscriber nodes**:
+   ```bash
+   python3 time_subscriber.py
+   python3 temperature_subscriber.py
+   ```
+
+3. **Run service nodes**:
+   ```bash
+   python3 square_service.py
+   python3 square_client.py
+   ```
+
+4. **Run robot controller**:
+   ```bash
+   python3 robot_controller.py
+   ```
+
+5. **Test with command-line tools**:
+   ```bash
+   # List nodes
+   ros2 node list
+
+   # List topics
+   ros2 topic list
+
+   # Echo topics
+   ros2 topic echo /current_time std_msgs/msg/Float64
+
+   # Call services
+   ros2 service call /square_number example_interfaces/srv/Trigger
+   ```
+
+## Exercise 8: Debugging Challenge
+
+### Objective
+Identify and fix the errors in the following incorrect code:
+
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class BrokenPublisher(Node):
+    def __init__(self):
+        super().__init__('broken_publisher')
+        self.pub = self.create_publisher(String, 'test_topic', 10)
+        self.timer = self.create_timer(1.0, self.timer_callback)
+
+    def timer_callback(self):
+        msg = String()
+        msg.data = "Hello World"
+        # Missing publish call!
+        # self.pub.publish(msg)  # This line is commented out
+
+def main():
+    rclpy.init()
+    node = BrokenPublisher()
+    rclpy.spin(node)
+    # Missing cleanup!
+    # node.destroy_node()
+    # rclpy.shutdown()
+```
+
+### Issues to Identify:
+1. Missing publish call
+2. Missing cleanup calls
+3. Incorrect main function signature
+
+### Corrected Code:
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class FixedPublisher(Node):
+    def __init__(self):
+        super().__init__('fixed_publisher')
+        self.pub = self.create_publisher(String, 'test_topic', 10)
+        self.timer = self.create_timer(1.0, self.timer_callback)
+
+    def timer_callback(self):
+        msg = String()
+        msg.data = "Hello World"
+        self.pub.publish(msg)  # Fixed: Added publish call
+
+def main(args=None):  # Fixed: Added args parameter
+    rclpy.init(args=args)  # Fixed: Pass args
+    node = FixedPublisher()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()  # Fixed: Added cleanup
+        rclpy.shutdown()     # Fixed: Added shutdown
+
+if __name__ == '__main__':
+    main()
+```
+
+## Exercise 9: Integration Challenge
+
+### Objective
+Combine multiple nodes into a coordinated system that simulates a simple sensor network.
+
+### Requirements
+1. **Sensor Node**: Publishes random sensor readings
+2. **Processor Node**: Subscribes to sensor data, processes it, and publishes results
+3. **Logger Node**: Subscribes to processed data and logs it to file
+4. **Monitor Node**: Provides a service to get the latest processed value
+
+### Implementation Hints
+- Use different topics for raw and processed data
+- Implement proper error handling
+- Use appropriate QoS settings for your use case
+- Consider using parameters to configure behavior
+
+## Exercise 10: Self-Assessment Questions
+
+### Multiple Choice Questions
+
+1. What is required to create a publisher in rclpy?
+   A) Only a topic name
+   B) Topic name and message type
+   C) Topic name, message type, and queue size
+   D) Topic name, message type, queue size, and QoS profile
+
+   **Answer**: C) Topic name, message type, and queue size
+
+2. How do you wait for a service to be available in a client?
+   A) `client.wait_for_service()`
+   B) `client.wait_for_service(timeout_sec=1.0)`
+   C) `client.is_service_ready()`
+   D) `client.check_service()`
+
+   **Answer**: B) `client.wait_for_service(timeout_sec=1.0)`
+
+3. What happens if you don't call `rclpy.shutdown()`?
+   A) Nothing bad happens
+   B) The node continues running in the background
+   C) Resources may not be properly released
+   D) The program crashes immediately
+
+   **Answer**: C) Resources may not be properly released
+
+### Practical Questions
+
+1. **Scenario**: You have a publisher that sends data at 100 Hz, but your subscriber can only process data at 10 Hz. What QoS settings would you use to prevent message buildup?
+
+   **Answer**: Use a small queue size (e.g., 1) and potentially a "best effort" reliability policy, or use a "keep last" history policy with a small depth.
+
+2. **Scenario**: Your service callback takes a long time to execute. How would you handle this to prevent blocking?
+
+   **Answer**: For long operations, consider using ROS 2 Actions instead of Services, or implement the long operation asynchronously using threading within the service callback.
+
+## Summary
+
+These exercises cover the fundamental aspects of creating ROS 2 nodes in Python:
+
+1. **Basic nodes**: Publishers and subscribers with proper initialization and cleanup
+2. **Service implementation**: Servers and clients with request/response handling
+3. **Complex nodes**: Nodes that act as both publishers and subscribers
+4. **Integration**: Connecting multiple nodes into a system
+5. **Debugging**: Identifying and fixing common errors
+6. **Best practices**: Proper resource management and error handling
+
+Completing these exercises should give you a solid foundation in creating and managing ROS 2 nodes using Python and rclpy.
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [Introduction to Python ROS 2 Nodes](./intro) - Overview of Python ROS 2 development
+- [Creating a Python Publisher Node](./publisher-node) - Detailed publisher concepts
+- [Creating a Python Subscriber Node](./subscriber-node) - Detailed subscriber concepts
+- [Creating a Python Service Server](./service-server) - Detailed service server concepts
+- [Creating a Python Service Client](./service-client) - Detailed service client concepts
+- [Complete rclpy Code Examples](./examples) - Additional working examples
+- [Troubleshooting Common rclpy Issues](./troubleshooting) - Problem-solving techniques

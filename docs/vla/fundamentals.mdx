@@ -1,0 +1,85 @@
+# VLA Fundamentals: Vision-Language-Action Systems
+
+For more information about ROS 2 concepts mentioned in this module, see the [ROS 2 Documentation](https://docs.ros.org/en/humble/).
+
+## Learning Objectives
+
+After completing this section, you will be able to:
+- Identify the three core components of Vision-Language-Action systems
+- Explain the role of vision, language, and action components in robotic systems
+- Describe how these components integrate to enable intelligent behavior
+- Understand the applications and challenges of VLA systems
+
+## Introduction
+
+Vision-Language-Action (VLA) systems represent a paradigm shift in robotics, where robots can understand natural language commands and execute complex tasks by combining visual perception, language understanding, and action execution. This approach enables more intuitive human-robot interaction and opens new possibilities for robotic applications.
+
+## Core Components
+
+### Vision Component
+
+The vision component of a VLA system is responsible for perception and object recognition. It processes visual input from cameras or sensors to understand the environment. Key aspects include:
+
+- **Object Detection**: Identifying and locating objects within the visual field
+- **Scene Understanding**: Comprehending the spatial relationships between objects
+- **Visual Tracking**: Following objects as they move through the environment
+- **Depth Perception**: Understanding the 3D structure of the environment
+
+### Language Component
+
+The language component handles natural language understanding and processing. It interprets human commands and translates them into actionable instructions for the robot. Key aspects include:
+
+- **Natural Language Processing (NLP)**: Understanding the semantic meaning of commands
+- **Intent Recognition**: Determining the user's intended action
+- **Entity Extraction**: Identifying specific objects, locations, or parameters mentioned in commands
+- **Context Awareness**: Understanding commands in the context of the current situation
+
+### Action Component
+
+The action component executes physical or logical actions based on the interpreted language and visual input. It interfaces with the robot's control systems to perform tasks. Key aspects include:
+
+- **Motion Planning**: Determining how to execute actions safely and efficiently
+- **Action Sequencing**: Breaking complex tasks into executable steps
+- **Feedback Processing**: Monitoring action execution and adapting as needed
+- **ROS 2 Integration**: Communicating with ROS 2 action servers and clients
+
+## Integration Pattern
+
+The true power of VLA systems lies in the seamless integration of these three components:
+
+1. **Perception**: The vision component observes the environment and identifies relevant objects
+2. **Understanding**: The language component interprets the user's command and identifies the intended action
+3. **Planning**: The system combines visual information with the understood intent to plan the action sequence
+4. **Execution**: The action component executes the planned sequence using ROS 2 interfaces
+5. **Monitoring**: The system monitors execution using both visual feedback and action status
+
+## Applications
+
+VLA systems have numerous applications in robotics:
+
+- **Assistive Robotics**: Helping with daily tasks in home environments
+- **Industrial Automation**: Collaborating with humans in manufacturing settings
+- **Service Robotics**: Performing tasks in retail, hospitality, or healthcare environments
+- **Exploration**: Operating in remote or hazardous environments with human guidance
+
+## Challenges and Considerations
+
+While VLA systems offer powerful capabilities, they also present several challenges:
+
+- **Ambiguity Resolution**: Handling ambiguous commands that require clarification
+- **Real-time Processing**: Ensuring responses are timely enough for natural interaction
+- **Error Handling**: Managing failures gracefully and recovering from mistakes
+- **Safety**: Ensuring actions are safe given the current environment and context
+
+## Learning Outcomes
+
+After completing this section, you should understand:
+- The three core components of VLA systems and their roles
+- How these components work together in an integrated system
+- The applications and challenges of VLA systems in robotics
+- The importance of each component in enabling natural human-robot interaction
+
+In the following sections, we'll explore each component in greater detail:
+- [Voice-to-Action Pipeline](./voice-to-action.mdx) will cover how spoken commands are processed
+- [Language-to-Actions](./language-to-actions.mdx) will detail translating natural language to ROS 2 actions
+- [End-to-End Behavior](./end-to-end.mdx) will show complete system integration

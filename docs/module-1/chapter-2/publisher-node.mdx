@@ -1,0 +1,325 @@
+---
+sidebar_position: 2
+title: 'Creating a Python Publisher Node'
+keywords: [ros2, python, publisher, topic, rclpy, tutorial]
+description: 'Step-by-step guide to creating a ROS 2 publisher node in Python using rclpy'
+---
+
+# Creating a Python Publisher Node
+
+## Learning Objectives
+
+After completing this section, you will be able to:
+- Create a ROS 2 publisher node using Python and rclpy
+- Configure a publisher to send messages to a specific topic
+- Select appropriate message types for your data
+- Test and verify publisher functionality
+- Understand the lifecycle of a publisher node
+
+## Introduction to Publisher Nodes
+
+A **publisher node** in ROS 2 is a node that sends data to a topic. The data is sent asynchronously to any number of subscriber nodes that have subscribed to that topic. Publisher nodes are fundamental components in the ROS 2 publish/subscribe communication pattern.
+
+### Key Characteristics of Publishers
+- Send data to a specific topic name
+- Operate asynchronously (don't wait for responses)
+- Can broadcast to multiple subscribers simultaneously
+- Operate at a defined frequency or in response to events
+
+## Basic Publisher Node Structure
+
+Let's start with the most basic publisher node:
+
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class MinimalPublisher(Node):
+    def __init__(self):
+        super().__init__('minimal_publisher')
+        self.publisher = self.create_publisher(String, 'topic', 10)
+        timer_period = 0.5  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+
+    def timer_callback(self):
+        msg = String()
+        msg.data = 'Hello World %d' % self.get_clock().now().nanoseconds
+        self.publisher.publish(msg)
+        self.get_logger().info('Publishing: "%s"' % msg.data)
+
+def main(args=None):
+    rclpy.init(args=args)
+    minimal_publisher = MinimalPublisher()
+    rclpy.spin(minimal_publisher)
+    minimal_publisher.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+### Code Breakdown
+
+1. **Imports**: Import rclpy, Node class, and message type (String)
+2. **Node Class**: Inherits from `rclpy.node.Node`
+3. **Publisher Creation**: `self.create_publisher(String, 'topic', 10)`
+   - `String`: Message type
+   - `'topic'`: Topic name
+   - `10`: Queue size for messages
+4. **Timer**: Creates a timer that calls the callback function every 0.5 seconds
+5. **Message Creation**: Creates and populates a String message
+6. **Publish**: Publishes the message to the topic
+7. **Logging**: Logs the published message
+
+## Step-by-Step Creation Process
+
+### Step 1: Set up the basic structure
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String  # or another appropriate message type
+
+class MyPublisherNode(Node):
+    def __init__(self):
+        super().__init__('my_publisher_node')
+        # Initialize publisher here
+```
+
+### Step 2: Create the publisher
+```python
+# Inside the __init__ method
+self.publisher = self.create_publisher(String, 'my_topic', 10)
+```
+
+### Step 3: Create a timer or event trigger
+```python
+# Inside the __init__ method
+timer_period = 1.0  # Publish every second
+self.timer = self.create_timer(timer_period, self.timer_callback)
+```
+
+### Step 4: Implement the publishing callback
+```python
+def timer_callback(self):
+    msg = String()
+    msg.data = 'My message data'
+    self.publisher.publish(msg)
+    self.get_logger().info(f'Published: {msg.data}')
+```
+
+### Step 5: Complete the main function
+```python
+def main(args=None):
+    rclpy.init(args=args)
+    node = MyPublisherNode()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+```
+
+## Common Message Types
+
+### Basic Types
+- `std_msgs.msg.String` - Text messages
+- `std_msgs.msg.Int32`, `std_msgs.msg.Float64` - Numeric values
+- `std_msgs.msg.Bool` - Boolean values
+- `std_msgs.msg.Header` - Message headers with timestamps
+
+### Sensor Types
+- `sensor_msgs.msg.Image` - Camera images
+- `sensor_msgs.msg.LaserScan` - LIDAR data
+- `sensor_msgs.msg.Imu` - Inertial measurement unit data
+- `sensor_msgs.msg.JointState` - Robot joint states
+
+### Geometry Types
+- `geometry_msgs.msg.Twist` - Velocity commands
+- `geometry_msgs.msg.Pose` - Position and orientation
+- `geometry_msgs.msg.Point` - 3D point coordinates
+
+## Advanced Publisher Features
+
+### Publishing with Custom QoS
+
+```python
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+
+# Create a custom QoS profile
+qos_profile = QoSProfile(
+    depth=10,
+    reliability=ReliabilityPolicy.RELIABLE,
+    durability=DurabilityPolicy.VOLATILE
+)
+
+# Use it when creating the publisher
+self.publisher = self.create_publisher(String, 'topic', qos_profile)
+```
+
+### Publishing Different Data Types
+
+```python
+# Publishing geometry messages
+from geometry_msgs.msg import Twist
+
+def publish_velocity(self, linear_x, angular_z):
+    msg = Twist()
+    msg.linear.x = linear_x
+    msg.angular.z = angular_z
+    self.velocity_publisher.publish(msg)
+
+# Publishing with headers
+from std_msgs.msg import Header
+import time
+
+def publish_with_header(self):
+    msg = String()
+    msg.header = Header()
+    msg.header.stamp = self.get_clock().now().to_msg()
+    msg.header.frame_id = 'base_link'
+    msg.data = 'Message with header'
+    self.publisher.publish(msg)
+```
+
+## Practical Example: Temperature Publisher
+
+Let's create a more realistic example that publishes simulated temperature readings:
+
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float64
+import random
+
+class TemperaturePublisher(Node):
+    def __init__(self):
+        super().__init__('temperature_publisher')
+        self.publisher = self.create_publisher(Float64, 'temperature', 10)
+
+        # Simulate room temperature with small variations
+        self.base_temp = 22.0  # Base temperature in Celsius
+
+        # Create timer to publish every 2 seconds
+        timer_period = 2.0
+        self.timer = self.create_timer(timer_period, self.publish_temperature)
+
+        self.get_logger().info('Temperature publisher node initialized')
+
+    def publish_temperature(self):
+        # Add some random variation to simulate real sensor readings
+        current_temp = self.base_temp + random.uniform(-0.5, 0.5)
+
+        msg = Float64()
+        msg.data = current_temp
+
+        self.publisher.publish(msg)
+        self.get_logger().info(f'Published temperature: {current_temp:.2f}°C')
+
+def main(args=None):
+    rclpy.init(args=args)
+    temp_publisher = TemperaturePublisher()
+
+    try:
+        rclpy.spin(temp_publisher)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        temp_publisher.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+## Testing Your Publisher
+
+### Method 1: Using command line tools
+```bash
+# Check if the node is running
+ros2 node list
+
+# Check the topics
+ros2 topic list
+
+# Echo the published messages
+ros2 topic echo /topic std_msgs/msg/String
+```
+
+### Method 2: Create a simple subscriber for testing
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class SimpleSubscriber(Node):
+    def __init__(self):
+        super().__init__('simple_subscriber')
+        self.subscription = self.create_subscription(
+            String,
+            'topic',
+            self.listener_callback,
+            10)
+        self.subscription  # Prevent unused variable warning
+
+    def listener_callback(self, msg):
+        self.get_logger().info(f'Received: {msg.data}')
+
+def main(args=None):
+    rclpy.init(args=args)
+    subscriber = SimpleSubscriber()
+    rclpy.spin(subscriber)
+    subscriber.destroy_node()
+    rclpy.shutdown()
+```
+
+## Best Practices
+
+### 1. Choose appropriate queue sizes
+- Small queue (1-10): For real-time data where old messages are not useful
+- Large queue (100+): For important data that should not be lost
+
+### 2. Use meaningful topic names
+- Follow ROS naming conventions (lowercase, underscores)
+- Be descriptive: `/robot_name/sensor_name/data` rather than just `/data`
+
+### 3. Handle node lifecycle properly
+- Always call `destroy_node()` and `rclpy.shutdown()` in main()
+- Use try/except blocks for graceful shutdown
+
+### 4. Log appropriately
+- Use `self.get_logger().info()` for normal operations
+- Use `self.get_logger().error()` for errors
+- Don't over-log in high-frequency publishing loops
+
+## Common Pitfalls and Solutions
+
+### Pitfall 1: Forgetting to initialize rclpy
+**Solution**: Always call `rclpy.init()` before creating nodes
+
+### Pitfall 2: Using inappropriate message types
+**Solution**: Choose message types that match your data (String for text, Float64 for numbers, etc.)
+
+### Pitfall 3: Publishing too frequently
+**Solution**: Use appropriate timer periods or rate limiting
+
+### Pitfall 4: Not handling node destruction
+**Solution**: Ensure proper cleanup in main function
+
+## Summary
+
+Creating a publisher node in Python with rclpy involves:
+1. Setting up the basic node structure
+2. Creating a publisher with appropriate message type and topic name
+3. Implementing a publishing mechanism (timer or event-based)
+4. Creating and publishing messages in the callback
+5. Properly initializing and shutting down the ROS 2 system
+
+Publisher nodes are fundamental building blocks in ROS 2 systems, enabling asynchronous data broadcasting to multiple subscribers. Understanding how to create and configure publishers is essential for developing ROS 2 applications.
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [Introduction to Python ROS 2 Nodes](./intro) - Overview of Python ROS 2 development
+- [Creating a Python Subscriber Node](./subscriber-node) - Receiving messages from topics
+- [ROS 2 Topics](../chapter-1/topics) - Theoretical background on publish/subscribe
+- [Python Service Server](./service-server) - Synchronous communication alternative
+- [Integration Example](../chapter-1/integration-example) - Complete system example

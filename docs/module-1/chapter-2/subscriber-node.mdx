@@ -1,0 +1,457 @@
+---
+sidebar_position: 3
+title: 'Creating a Python Subscriber Node'
+keywords: [ros2, python, subscriber, topic, rclpy, tutorial]
+description: 'Step-by-step guide to creating a ROS 2 subscriber node in Python using rclpy'
+---
+
+# Creating a Python Subscriber Node
+
+## Learning Objectives
+
+After completing this section, you will be able to:
+- Create a ROS 2 subscriber node using Python and rclpy
+- Configure a subscriber to receive messages from a specific topic
+- Process incoming messages in callback functions
+- Test and verify subscriber functionality
+- Understand the relationship between publishers and subscribers
+
+## Introduction to Subscriber Nodes
+
+A **subscriber node** in ROS 2 is a node that receives data from a topic. The data is received asynchronously from any number of publisher nodes that are publishing to that topic. Subscriber nodes are the counterpart to publisher nodes in the ROS 2 publish/subscribe communication pattern.
+
+### Key Characteristics of Subscribers
+- Receive data from a specific topic name
+- Operate asynchronously (don't block the publisher)
+- Can receive from multiple publishers simultaneously
+- Process messages through callback functions
+- Don't know which publisher sent the message (loose coupling)
+
+## Basic Subscriber Node Structure
+
+Let's start with the most basic subscriber node:
+
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class MinimalSubscriber(Node):
+    def __init__(self):
+        super().__init__('minimal_subscriber')
+        self.subscription = self.create_subscription(
+            String,
+            'topic',
+            self.listener_callback,
+            10)
+        self.subscription  # Prevent unused variable warning
+
+    def listener_callback(self, msg):
+        self.get_logger().info('I heard: "%s"' % msg.data)
+
+def main(args=None):
+    rclpy.init(args=args)
+    minimal_subscriber = MinimalSubscriber()
+    rclpy.spin(minimal_subscriber)
+    minimal_subscriber.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+### Code Breakdown
+
+1. **Imports**: Import rclpy, Node class, and message type (String)
+2. **Node Class**: Inherits from `rclpy.node.Node`
+3. **Subscriber Creation**: `self.create_subscription(String, 'topic', self.listener_callback, 10)`
+   - `String`: Expected message type
+   - `'topic'`: Topic name to subscribe to
+   - `self.listener_callback`: Function to call when messages arrive
+   - `10`: Queue size for incoming messages
+4. **Callback Function**: Processes incoming messages
+5. **Main Function**: Initialize rclpy, create node, spin, and cleanup
+
+## Step-by-Step Creation Process
+
+### Step 1: Set up the basic structure
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String  # or another appropriate message type
+
+class MySubscriberNode(Node):
+    def __init__(self):
+        super().__init__('my_subscriber_node')
+        # Initialize subscriber here
+```
+
+### Step 2: Create the subscriber
+```python
+# Inside the __init__ method
+self.subscription = self.create_subscription(
+    String,           # Message type
+    'my_topic',       # Topic name
+    self.listener_callback,  # Callback function
+    10                # Queue size
+)
+```
+
+### Step 3: Implement the callback function
+```python
+def listener_callback(self, msg):
+    # Process the received message
+    self.get_logger().info(f'Received: {msg.data}')
+```
+
+### Step 4: Complete the main function
+```python
+def main(args=None):
+    rclpy.init(args=args)
+    node = MySubscriberNode()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+```
+
+## Working with Different Message Types
+
+### String Messages
+```python
+from std_msgs.msg import String
+
+def string_callback(self, msg):
+    self.get_logger().info(f'Received string: {msg.data}')
+```
+
+### Numeric Messages
+```python
+from std_msgs.msg import Int32, Float64
+
+def number_callback(self, msg):
+    self.get_logger().info(f'Received number: {msg.data}')
+```
+
+### Boolean Messages
+```python
+from std_msgs.msg import Bool
+
+def bool_callback(self, msg):
+    status = "ON" if msg.data else "OFF"
+    self.get_logger().info(f'Status is: {status}')
+```
+
+### Complex Messages (e.g., geometry_msgs)
+```python
+from geometry_msgs.msg import Twist
+
+def velocity_callback(self, msg):
+    linear_x = msg.linear.x
+    angular_z = msg.angular.z
+    self.get_logger().info(f'Velocity: linear={linear_x}, angular={angular_z}')
+```
+
+## Advanced Subscriber Features
+
+### Using Custom QoS Profiles
+
+```python
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+
+# Create a custom QoS profile
+qos_profile = QoSProfile(
+    depth=10,
+    reliability=ReliabilityPolicy.RELIABLE,
+    durability=DurabilityPolicy.VOLATILE
+)
+
+# Use it when creating the subscriber
+self.subscription = self.create_subscription(
+    String,
+    'topic',
+    self.listener_callback,
+    qos_profile
+)
+```
+
+### Subscribing to Multiple Topics
+
+```python
+class MultiSubscriber(Node):
+    def __init__(self):
+        super().__init__('multi_subscriber')
+
+        # Subscribe to multiple topics
+        self.sub1 = self.create_subscription(
+            String, 'topic1', self.callback1, 10)
+        self.sub2 = self.create_subscription(
+            Int32, 'topic2', self.callback2, 10)
+        self.sub3 = self.create_subscription(
+            Float64, 'topic3', self.callback3, 10)
+
+    def callback1(self, msg):
+        self.get_logger().info(f'Topic 1: {msg.data}')
+
+    def callback2(self, msg):
+        self.get_logger().info(f'Topic 2: {msg.data}')
+
+    def callback3(self, msg):
+        self.get_logger().info(f'Topic 3: {msg.data}')
+```
+
+### Message Filtering and Processing
+
+```python
+class FilteredSubscriber(Node):
+    def __init__(self):
+        super().__init__('filtered_subscriber')
+        self.subscription = self.create_subscription(
+            Float64, 'sensor_data', self.process_sensor_data, 10)
+
+        # Store previous values for comparison
+        self.previous_value = None
+
+    def process_sensor_data(self, msg):
+        current_value = msg.data
+
+        # Filter based on conditions
+        if self.previous_value is not None:
+            change = abs(current_value - self.previous_value)
+            if change > 5.0:  # Only log significant changes
+                self.get_logger().info(f'Significant change: {self.previous_value} -> {current_value}')
+
+        self.previous_value = current_value
+```
+
+## Practical Example: Temperature Monitor
+
+Let's create a practical example that subscribes to temperature data and provides alerts:
+
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float64
+
+class TemperatureMonitor(Node):
+    def __init__(self):
+        super().__init__('temperature_monitor')
+        self.subscription = self.create_subscription(
+            Float64,
+            'temperature',
+            self.temperature_callback,
+            10)
+
+        # Configuration parameters
+        self.high_threshold = 30.0  # High temperature threshold
+        self.low_threshold = 15.0   # Low temperature threshold
+        self.last_alert_time = 0.0
+
+        self.get_logger().info('Temperature monitor node initialized')
+
+    def temperature_callback(self, msg):
+        current_temp = msg.data
+        current_time = self.get_clock().now().nanoseconds / 1e9  # Convert to seconds
+
+        self.get_logger().info(f'Current temperature: {current_temp:.2f}°C')
+
+        # Check for high temperature
+        if current_temp > self.high_threshold:
+            time_since_last_alert = current_time - self.last_alert_time
+            # Limit alerts to once per 10 seconds to avoid spam
+            if time_since_last_alert > 10.0:
+                self.get_logger().warn(f'HIGH TEMPERATURE ALERT: {current_temp:.2f}°C')
+                self.last_alert_time = current_time
+
+        # Check for low temperature
+        elif current_temp < self.low_threshold:
+            time_since_last_alert = current_time - self.last_alert_time
+            if time_since_last_alert > 10.0:
+                self.get_logger().warn(f'LOW TEMPERATURE ALERT: {current_temp:.2f}°C')
+                self.last_alert_time = current_time
+
+def main(args=None):
+    rclpy.init(args=args)
+    temp_monitor = TemperatureMonitor()
+
+    try:
+        rclpy.spin(temp_monitor)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        temp_monitor.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+## Message Handling Patterns
+
+### Pattern 1: Simple Logging
+```python
+def simple_callback(self, msg):
+    self.get_logger().info(f'Received: {msg.data}')
+```
+
+### Pattern 2: State Storage
+```python
+def __init__(self):
+    super().__init__('state_subscriber')
+    self.current_state = None
+    self.subscription = self.create_subscription(
+        String, 'state_topic', self.state_callback, 10)
+
+def state_callback(self, msg):
+    self.current_state = msg.data
+    self.get_logger().info(f'New state: {self.current_state}')
+```
+
+### Pattern 3: Message Transformation
+```python
+def __init__(self):
+    super().__init__('transform_subscriber')
+    self.subscription = self.create_subscription(
+        Float64, 'input_topic', self.transform_callback, 10)
+    self.publisher = self.create_publisher(Float64, 'output_topic', 10)
+
+def transform_callback(self, msg):
+    # Transform the received message
+    transformed_value = msg.data * 2.0  # Example transformation
+
+    # Publish the transformed value
+    output_msg = Float64()
+    output_msg.data = transformed_value
+    self.publisher.publish(output_msg)
+```
+
+## Testing Your Subscriber
+
+### Method 1: Using command line tools
+```bash
+# In one terminal, publish test messages:
+ros2 topic pub /topic std_msgs/msg/String "data: 'Hello World'"
+
+# In another terminal, run your subscriber node
+python3 subscriber_node.py
+```
+
+### Method 2: Create a simple publisher for testing
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+import time
+
+class TestPublisher(Node):
+    def __init__(self):
+        super().__init__('test_publisher')
+        self.publisher = self.create_publisher(String, 'topic', 10)
+
+        # Publish a test message immediately
+        self.timer = self.create_timer(1.0, self.publish_test_message)
+
+    def publish_test_message(self):
+        msg = String()
+        msg.data = f'Test message at {time.time()}'
+        self.publisher.publish(msg)
+        self.get_logger().info(f'Published: {msg.data}')
+
+def main(args=None):
+    rclpy.init(args=args)
+    test_publisher = TestPublisher()
+
+    # Run for 10 seconds then exit
+    import threading
+    def shutdown_timer():
+        time.sleep(10)
+        rclpy.shutdown()
+
+    timer_thread = threading.Thread(target=shutdown_timer)
+    timer_thread.start()
+
+    try:
+        rclpy.spin(test_publisher)
+    finally:
+        test_publisher.destroy_node()
+```
+
+## Best Practices
+
+### 1. Choose appropriate queue sizes
+- Small queue (1-10): For real-time data where old messages are not useful
+- Large queue (100+): For important data that should not be lost
+
+### 2. Handle message processing efficiently
+- Avoid heavy computation in callback functions
+- Use separate threads for intensive processing if needed
+- Keep callbacks fast to avoid blocking message processing
+
+### 3. Use meaningful topic names
+- Follow ROS naming conventions (lowercase, underscores)
+- Be descriptive: `/robot_name/sensor_name/data` rather than just `/data`
+
+### 4. Implement proper error handling
+```python
+def safe_callback(self, msg):
+    try:
+        # Process message
+        result = self.process_message(msg)
+        self.get_logger().info(f'Result: {result}')
+    except Exception as e:
+        self.get_logger().error(f'Error processing message: {e}')
+```
+
+### 5. Log appropriately
+- Use `self.get_logger().info()` for normal operations
+- Use `self.get_logger().warn()` for warnings
+- Use `self.get_logger().error()` for errors
+
+## Common Pitfalls and Solutions
+
+### Pitfall 1: Callback takes too long
+**Solution**: Move heavy processing outside the callback or use threading
+
+### Pitfall 2: Not handling message validation
+**Solution**: Validate message contents before processing
+
+### Pitfall 3: Using wrong message types
+**Solution**: Ensure the subscriber's message type matches the publisher's
+
+### Pitfall 4: Forgetting to prevent unused variable warning
+**Solution**: Add `self.subscription` line after creating subscription
+
+### Pitfall 5: Blocking in callbacks
+**Solution**: Keep callbacks lightweight and non-blocking
+
+## Quality of Service Considerations
+
+### Reliability
+- **Reliable**: Every message will be delivered (if possible)
+- **Best Effort**: Messages may be lost, but delivery is faster
+
+### Durability
+- **Transient Local**: Late-joining subscribers receive the last message
+- **Volatile**: Late-joining subscribers don't receive old messages
+
+### History
+- **Keep Last**: Keep only the most recent messages
+- **Keep All**: Keep all messages (limited by memory)
+
+## Summary
+
+Creating a subscriber node in Python with rclpy involves:
+1. Setting up the basic node structure
+2. Creating a subscription to a specific topic with appropriate message type
+3. Implementing a callback function to process incoming messages
+4. Properly initializing and shutting down the ROS 2 system
+
+Subscriber nodes are essential for receiving data in ROS 2 systems, enabling asynchronous communication between different components. Understanding how to create and configure subscribers is crucial for developing complete ROS 2 applications.
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [Introduction to Python ROS 2 Nodes](./intro) - Overview of Python ROS 2 development
+- [Creating a Python Publisher Node](./publisher-node) - Sending messages to topics
+- [ROS 2 Topics](../chapter-1/topics) - Theoretical background on publish/subscribe
+- [Python Service Client](./service-client) - Synchronous communication alternative
+- [Integration Example](../chapter-1/integration-example) - Complete system example

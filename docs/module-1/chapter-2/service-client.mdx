@@ -1,0 +1,689 @@
+---
+sidebar_position: 5
+title: 'Creating a Python Service Client'
+keywords: [ros2, python, service, client, rclpy, request-response, tutorial]
+description: 'Step-by-step guide to creating a ROS 2 service client in Python using rclpy'
+---
+
+# Creating a Python Service Client
+
+## Learning Objectives
+
+After completing this section, you will be able to:
+- Create a ROS 2 service client using Python and rclpy
+- Send requests to service servers and handle responses
+- Implement both synchronous and asynchronous service calls
+- Handle service call failures and timeouts
+- Test and verify service client functionality
+
+## Introduction to Service Clients
+
+A **service client** in ROS 2 is a node that sends requests to service servers and receives responses. Service clients implement the request/response communication pattern, where the client sends a request to a server and waits (synchronously) or continues execution (asynchronously) while waiting for a response.
+
+### Key Characteristics of Service Clients
+- Send requests to specific service servers
+- Wait for and receive responses from servers
+- Can make synchronous or asynchronous calls
+- Handle service call failures and timeouts
+- Don't know which specific server will handle the request (loose coupling)
+
+## Basic Service Client Structure
+
+Let's start with the most basic service client using the built-in `AddTwoInts` service:
+
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class MinimalClient(Node):
+    def __init__(self):
+        super().__init__('minimal_client')
+        self.cli = self.create_client(AddTwoInts, 'add_two_ints')
+
+        while not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Service not available, waiting again...')
+
+        self.req = AddTwoInts.Request()
+
+    def send_request(self, a, b):
+        self.req.a = a
+        self.req.b = b
+        future = self.cli.call_async(self.req)
+        return future
+
+def main(args=None):
+    rclpy.init(args=args)
+    minimal_client = MinimalClient()
+
+    future = minimal_client.send_request(1, 2)
+    rclpy.spin_until_future_complete(minimal_client, future)
+
+    if future.result() is not None:
+        response = future.result()
+        minimal_client.get_logger().info(f'Result: {response.sum}')
+    else:
+        minimal_client.get_logger().info('Service call failed')
+
+    minimal_client.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+### Code Breakdown
+
+1. **Imports**: Import rclpy, Node class, and service type (AddTwoInts)
+2. **Node Class**: Inherits from `rclpy.node.Node`
+3. **Client Creation**: `self.create_client(AddTwoInts, 'add_two_ints')`
+   - `AddTwoInts`: Service type definition
+   - `'add_two_ints'`: Service name to call
+4. **Service Availability Check**: Wait for service to be available
+5. **Request Object**: Create and store a request object for reuse
+6. **Making Requests**: Use `call_async()` for asynchronous calls
+7. **Waiting for Response**: Use `spin_until_future_complete()` to wait for result
+8. **Processing Response**: Check for success and handle result
+
+## Step-by-Step Creation Process
+
+### Step 1: Set up the basic structure
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts  # or another appropriate service type
+
+class MyServiceClient(Node):
+    def __init__(self):
+        super().__init__('my_service_client')
+        # Initialize service client here
+```
+
+### Step 2: Create the service client
+```python
+# Inside the __init__ method
+self.client = self.create_client(AddTwoInts, 'my_service_name')
+
+# Wait for the service to be available
+while not self.client.wait_for_service(timeout_sec=1.0):
+    self.get_logger().info('Service not available, waiting again...')
+```
+
+### Step 3: Prepare the request
+```python
+# Inside the __init__ method or when needed
+self.request = AddTwoInts.Request()
+```
+
+### Step 4: Send the request and handle response
+```python
+def call_service(self, a, b):
+    self.request.a = a
+    self.request.b = b
+
+    future = self.client.call_async(self.request)
+    rclpy.spin_until_future_complete(self, future)
+
+    if future.result() is not None:
+        response = future.result()
+        return response
+    else:
+        self.get_logger().error('Service call failed')
+        return None
+```
+
+### Step 5: Complete the main function
+```python
+def main(args=None):
+    rclpy.init(args=args)
+    node = MyServiceClient()
+
+    # Make service calls
+    result = node.call_service(1, 2)
+    if result is not None:
+        print(f'Result: {result.sum}')
+
+    node.destroy_node()
+    rclpy.shutdown()
+```
+
+## Synchronous vs Asynchronous Service Calls
+
+### Synchronous Calls
+Synchronous calls block the execution until a response is received:
+
+```python
+def synchronous_call(self, a, b):
+    # Create request
+    request = AddTwoInts.Request()
+    request.a = a
+    request.b = b
+
+    # Make synchronous call (blocks execution)
+    try:
+        response = self.client.call(request)
+        return response
+    except Exception as e:
+        self.get_logger().error(f'Synchronous service call failed: {e}')
+        return None
+```
+
+### Asynchronous Calls (Recommended)
+Asynchronous calls don't block execution and use futures:
+
+```python
+def asynchronous_call(self, a, b):
+    # Create request
+    request = AddTwoInts.Request()
+    request.a = a
+    request.b = b
+
+    # Make asynchronous call
+    future = self.client.call_async(request)
+
+    # Wait for response without blocking other operations
+    rclpy.spin_until_future_complete(self, future)
+
+    try:
+        response = future.result()
+        return response
+    except Exception as e:
+        self.get_logger().error(f'Asynchronous service call failed: {e}')
+        return None
+```
+
+## Advanced Service Client Features
+
+### Service Call with Timeout
+
+```python
+import rclpy
+from rclpy.node import Node
+from rclpy.task import Future
+from example_interfaces.srv import AddTwoInts
+
+class TimedClient(Node):
+    def __init__(self):
+        super().__init__('timed_client')
+        self.cli = self.create_client(AddTwoInts, 'add_two_ints')
+        self.timeout = 5.0  # 5 second timeout
+
+    def call_with_timeout(self, a, b):
+        while not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Service not available, waiting again...')
+
+        request = AddTwoInts.Request()
+        request.a = a
+        request.b = b
+
+        future = self.cli.call_async(request)
+
+        # Wait with timeout
+        timer = self.create_timer(0.1, lambda: None)  # Dummy timer to keep spinning
+        start_time = self.get_clock().now()
+
+        while rclpy.ok():
+            current_time = self.get_clock().now()
+            elapsed = (current_time - start_time).nanoseconds / 1e9  # Convert to seconds
+
+            if future.done():
+                timer.cancel()
+                return future.result()
+
+            if elapsed > self.timeout:
+                timer.cancel()
+                self.get_logger().error('Service call timed out')
+                return None
+
+            rclpy.spin_once(self, timeout_sec=0.1)
+```
+
+### Multiple Concurrent Service Calls
+
+```python
+import asyncio
+
+class ConcurrentClient(Node):
+    def __init__(self):
+        super().__init__('concurrent_client')
+        self.cli = self.create_client(AddTwoInts, 'add_two_ints')
+
+    async def call_multiple_services(self):
+        # Wait for service availability
+        while not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Service not available, waiting again...')
+
+        # Create multiple requests
+        requests = [
+            (1, 2),
+            (3, 4),
+            (5, 6)
+        ]
+
+        # Make concurrent calls
+        futures = []
+        for a, b in requests:
+            request = AddTwoInts.Request()
+            request.a = a
+            request.b = b
+            future = self.cli.call_async(request)
+            futures.append(future)
+
+        # Wait for all responses
+        responses = []
+        for future in futures:
+            rclpy.spin_until_future_complete(self, future)
+            if future.result() is not None:
+                responses.append(future.result())
+            else:
+                responses.append(None)
+
+        return responses
+```
+
+## Practical Example: Robot Control Client
+
+Let's create a practical example that calls a robot control service:
+
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import SetBool
+from std_msgs.msg import Bool
+
+class RobotControlClient(Node):
+    def __init__(self):
+        super().__init__('robot_control_client')
+
+        # Service client to enable/disable robot
+        self.enable_client = self.create_client(SetBool, 'enable_robot')
+
+        # Subscriber to monitor robot status
+        self.status_subscriber = self.create_subscription(
+            Bool, 'robot_enabled', self.status_callback, 10
+        )
+
+        # Wait for service availability
+        while not self.enable_client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Robot control service not available, waiting...')
+
+        self.request = SetBool.Request()
+        self.current_status = False
+
+    def status_callback(self, msg):
+        self.current_status = msg.data
+        self.get_logger().info(f'Robot status updated: {self.current_status}')
+
+    def enable_robot(self):
+        self.request.data = True
+        future = self.enable_client.call_async(self.request)
+        rclpy.spin_until_future_complete(self, future)
+
+        if future.result() is not None:
+            response = future.result()
+            if response.success:
+                self.get_logger().info(f'Robot enabled: {response.message}')
+            else:
+                self.get_logger().error(f'Failed to enable robot: {response.message}')
+        else:
+            self.get_logger().error('Enable robot service call failed')
+
+        return future.result()
+
+    def disable_robot(self):
+        self.request.data = False
+        future = self.enable_client.call_async(self.request)
+        rclpy.spin_until_future_complete(self, future)
+
+        if future.result() is not None:
+            response = future.result()
+            if response.success:
+                self.get_logger().info(f'Robot disabled: {response.message}')
+            else:
+                self.get_logger().error(f'Failed to disable robot: {response.message}')
+        else:
+            self.get_logger().error('Disable robot service call failed')
+
+        return future.result()
+
+    def toggle_robot(self):
+        new_state = not self.current_status
+        self.request.data = new_state
+        future = self.enable_client.call_async(self.request)
+        rclpy.spin_until_future_complete(self, future)
+
+        if future.result() is not None:
+            response = future.result()
+            if response.success:
+                self.get_logger().info(f'Robot toggled to {new_state}: {response.message}')
+            else:
+                self.get_logger().error(f'Failed to toggle robot: {response.message}')
+        else:
+            self.get_logger().error('Toggle robot service call failed')
+
+        return future.result()
+
+def main(args=None):
+    rclpy.init(args=args)
+    robot_client = RobotControlClient()
+
+    try:
+        # Enable robot
+        robot_client.enable_robot()
+
+        # Wait a bit
+        import time
+        time.sleep(2)
+
+        # Disable robot
+        robot_client.disable_robot()
+
+        # Wait a bit more
+        time.sleep(2)
+
+        # Toggle robot
+        robot_client.toggle_robot()
+
+    except KeyboardInterrupt:
+        pass
+    finally:
+        robot_client.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+## Error Handling and Robust Client Design
+
+### Comprehensive Error Handling
+
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class RobustClient(Node):
+    def __init__(self):
+        super().__init__('robust_client')
+        self.cli = self.create_client(AddTwoInts, 'add_two_ints')
+        self.request = AddTwoInts.Request()
+
+    def call_service_robust(self, a, b, timeout=5.0):
+        # Check if service is available
+        if not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().error('Service not available')
+            return None
+
+        # Prepare request
+        self.request.a = a
+        self.request.b = b
+
+        # Make asynchronous call
+        future = self.cli.call_async(self.request)
+
+        # Wait for response with timeout
+        try:
+            rclpy.spin_until_future_complete(self, future, timeout_sec=timeout)
+        except KeyboardInterrupt:
+            self.get_logger().info('Service call interrupted by user')
+            return None
+
+        # Process response
+        if future.done():
+            try:
+                response = future.result()
+                self.get_logger().info(f'Service call successful: {response.sum}')
+                return response
+            except Exception as e:
+                self.get_logger().error(f'Error processing response: {e}')
+                return None
+        else:
+            self.get_logger().error('Service call timed out')
+            return None
+
+    def call_with_retry(self, a, b, max_retries=3):
+        for attempt in range(max_retries):
+            result = self.call_service_robust(a, b)
+            if result is not None:
+                return result
+            self.get_logger().info(f'Service call failed, attempt {attempt + 1}/{max_retries}')
+
+            if attempt < max_retries - 1:
+                # Wait before retry
+                import time
+                time.sleep(1.0)
+
+        self.get_logger().error(f'Service call failed after {max_retries} attempts')
+        return None
+```
+
+### Client with Service Discovery
+
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class DiscoveryClient(Node):
+    def __init__(self):
+        super().__init__('discovery_client')
+        self.cli = self.create_client(AddTwoInts, 'add_two_ints')
+
+    def call_with_discovery(self, a, b):
+        # Check if service is available
+        if not self.cli.service_is_ready():
+            self.get_logger().info('Service not ready, waiting...')
+
+            # Wait with timeout
+            timeout = 10.0  # seconds
+            start_time = self.get_clock().now()
+
+            while not self.cli.service_is_ready():
+                current_time = self.get_clock().now()
+                elapsed = (current_time - start_time).nanoseconds / 1e9
+
+                if elapsed > timeout:
+                    self.get_logger().error('Service discovery timed out')
+                    return None
+
+                # Sleep briefly and continue checking
+                self.get_logger().info('Still waiting for service...')
+                break  # In real implementation, you'd continue waiting
+
+        # Service is available, make the call
+        request = AddTwoInts.Request()
+        request.a = a
+        request.b = b
+
+        future = self.cli.call_async(request)
+        rclpy.spin_until_future_complete(self, future)
+
+        if future.result() is not None:
+            return future.result()
+        else:
+            self.get_logger().error('Service call failed')
+            return None
+```
+
+## Client Callback Patterns
+
+### Pattern 1: Simple Request-Response
+```python
+def simple_call(self, param1, param2):
+    request = MyService.Request()
+    request.param1 = param1
+    request.param2 = param2
+
+    future = self.client.call_async(request)
+    rclpy.spin_until_future_complete(self, future)
+
+    return future.result() if future.result() is not None else None
+```
+
+### Pattern 2: Fire-and-Forget with Callback
+```python
+def call_with_callback(self, param):
+    request = MyService.Request()
+    request.param = param
+
+    future = self.client.call_async(request)
+    future.add_done_callback(self.service_response_callback)
+
+def service_response_callback(self, future):
+    try:
+        response = future.result()
+        self.get_logger().info(f'Service response: {response}')
+    except Exception as e:
+        self.get_logger().error(f'Service call failed: {e}')
+```
+
+### Pattern 3: Batch Processing
+```python
+def batch_calls(self, requests_data):
+    futures = []
+
+    for data in requests_data:
+        request = MyService.Request()
+        request.data = data
+        future = self.client.call_async(request)
+        futures.append(future)
+
+    # Wait for all responses
+    results = []
+    for future in futures:
+        rclpy.spin_until_future_complete(self, future)
+        result = future.result() if future.result() is not None else None
+        results.append(result)
+
+    return results
+```
+
+## Testing Your Service Client
+
+### Method 1: Using command line tools
+```bash
+# In one terminal, run a service server
+ros2 run demo_nodes_cpp add_two_ints_server
+
+# In another terminal, run your service client
+python3 service_client.py
+```
+
+### Method 2: Create a simple service server for testing
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class TestServer(Node):
+    def __init__(self):
+        super().__init__('test_server')
+        self.service = self.create_service(
+            AddTwoInts,
+            'add_two_ints',
+            self.add_callback
+        )
+
+    def add_callback(self, request, response):
+        response.sum = request.a + request.b
+        self.get_logger().info(f'Calculated: {request.a} + {request.b} = {response.sum}')
+        return response
+
+def main(args=None):
+    rclpy.init(args=args)
+    server = TestServer()
+
+    try:
+        rclpy.spin(server)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+## Best Practices
+
+### 1. Always check service availability
+```python
+while not self.client.wait_for_service(timeout_sec=1.0):
+    self.get_logger().info('Service not available, waiting...')
+```
+
+### 2. Handle timeouts appropriately
+```python
+rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+if not future.done():
+    self.get_logger().error('Service call timed out')
+```
+
+### 3. Use proper error handling
+```python
+try:
+    response = future.result()
+    # Process response
+except AttributeError:
+    self.get_logger().error('Service call failed')
+except Exception as e:
+    self.get_logger().error(f'Unexpected error: {e}')
+```
+
+### 4. Implement retry logic for critical services
+```python
+def call_with_retry(self, request, max_attempts=3):
+    for attempt in range(max_attempts):
+        future = self.client.call_async(request)
+        rclpy.spin_until_future_complete(self, future)
+
+        if future.result() is not None:
+            return future.result()
+
+        if attempt < max_attempts - 1:
+            time.sleep(1.0)  # Wait before retry
+
+    return None
+```
+
+### 5. Log appropriately
+- Log service calls for debugging
+- Log errors and timeouts
+- Don't over-log in high-frequency clients
+
+## Common Pitfalls and Solutions
+
+### Pitfall 1: Not waiting for service availability
+**Solution**: Always check `wait_for_service()` before making calls
+
+### Pitfall 2: Forgetting to handle None responses
+**Solution**: Always check if `future.result()` is not None
+
+### Pitfall 3: Blocking indefinitely
+**Solution**: Use timeouts when waiting for responses
+
+### Pitfall 4: Not handling service call failures
+**Solution**: Implement proper error handling and retry logic
+
+## Summary
+
+Creating a service client in Python with rclpy involves:
+1. Setting up the basic node structure
+2. Creating a service client for a specific service name
+3. Waiting for the service to become available
+4. Creating and sending requests asynchronously
+5. Waiting for and processing responses
+6. Properly handling errors and timeouts
+
+Service clients provide synchronous request/response communication, making them ideal for operations that need to return results immediately. Understanding how to create and configure service clients is essential for developing interactive ROS 2 applications.
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [Introduction to Python ROS 2 Nodes](./intro) - Overview of Python ROS 2 development
+- [Creating a Python Service Server](./service-server) - Providing services to clients
+- [ROS 2 Services](../chapter-1/services) - Theoretical background on request/response
+- [Creating a Python Subscriber Node](./subscriber-node) - Asynchronous communication alternative
+- [Integration Example](../chapter-1/integration-example) - Complete system example

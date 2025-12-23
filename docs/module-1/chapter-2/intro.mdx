@@ -1,0 +1,131 @@
+---
+sidebar_position: 1
+title: 'Introduction to Python ROS 2 Nodes with rclpy'
+keywords: [ros2, python, rclpy, nodes, tutorial, beginner]
+description: 'Learn how to create ROS 2 nodes using Python and the rclpy client library'
+---
+
+# Introduction to Python ROS 2 Nodes with rclpy
+
+## Learning Objectives
+
+After completing this chapter on Creating Simple Python ROS 2 Nodes, you will be able to:
+
+### Python ROS 2 Fundamentals
+- Explain what rclpy is and its role as the Python client library for ROS 2
+- Understand the relationship between rclpy and the ROS 2 middleware
+- Identify the basic components required to create a Python ROS 2 node
+
+### Node Creation and Structure
+- Create a basic ROS 2 node using Python and rclpy
+- Implement publishers, subscribers, services, and clients in Python
+- Structure Python ROS 2 code following best practices and conventions
+
+### Practical Implementation
+- Write simple publisher and subscriber nodes in Python
+- Create service servers and clients using rclpy
+- Test and debug Python ROS 2 nodes during development
+
+### Integration and Testing
+- Launch and run Python ROS 2 nodes in the ROS 2 system
+- Verify node functionality through command-line tools
+- Integrate Python nodes with other ROS 2 components
+
+### Simulation and Deployment
+- Execute Python ROS 2 nodes in simulation environments without physical hardware
+- Apply troubleshooting techniques to resolve common rclpy issues
+- Validate node functionality through comprehensive exercises
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [ROS 2 Architecture Understanding](../chapter-1/intro) - Foundation concepts for nodes
+- [ROS 2 Nodes](../chapter-1/nodes) - Theoretical background on nodes
+- [ROS 2 Topics](../chapter-1/topics) - Understanding publish/subscribe in Python
+- [ROS 2 Services](../chapter-1/services) - Understanding request/response in Python
+- [Python Publisher Node](./publisher-node) - Step-by-step publisher implementation
+- [Python Subscriber Node](./subscriber-node) - Step-by-step subscriber implementation
+- [Python Service Server](./service-server) - Creating service servers in Python
+- [Python Service Client](./service-client) - Creating service clients in Python
+- [AI-ROS Integration](../chapter-3/intro) - Advanced Python integration patterns
+- [URDF Understanding](../chapter-4/intro) - How Python nodes interact with robot descriptions
+
+## What is rclpy?
+
+**rclpy** is the Python client library for ROS 2. It provides the Python API that allows you to create ROS 2 nodes, publish and subscribe to topics, provide and call services, and interact with the ROS 2 ecosystem from Python code.
+
+### Key Features of rclpy
+
+1. **Node Management**: Create and manage ROS 2 nodes in Python
+2. **Communication**: Support for topics, services, and actions
+3. **Parameter Handling**: Manage node parameters dynamically
+4. **Time Management**: Handle ROS time, durations, and rates
+5. **Logging**: Built-in logging capabilities for debugging
+6. **Lifecycle Management**: Support for node lifecycle management
+
+### Why Python for ROS 2?
+
+Python is an excellent choice for ROS 2 development because:
+
+- **Rapid Prototyping**: Quick development and testing of robotic applications
+- **Large Ecosystem**: Access to extensive Python libraries for AI, vision, and math
+- **Readability**: Clean, readable code that's easy to maintain
+- **Community**: Strong community support and extensive documentation
+- **Integration**: Easy integration with AI/ML frameworks like TensorFlow and PyTorch
+
+## Basic Node Structure
+
+A minimal ROS 2 Python node follows this structure:
+
+```python
+import rclpy
+from rclpy.node import Node
+
+class MinimalPublisher(Node):
+    def __init__(self):
+        super().__init__('minimal_publisher')
+
+def main(args=None):
+    rclpy.init(args=args)
+    minimal_publisher = MinimalPublisher()
+    rclpy.spin(minimal_publisher)
+    minimal_publisher.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+### Key Components Explained
+
+1. **Import Statements**: Import rclpy and the Node class
+2. **Node Class**: Inherit from `rclpy.node.Node` to create your node
+3. **Constructor**: Call `super().__init__()` with a unique node name
+4. **Main Function**: Initialize rclpy, create node, spin, and cleanup
+5. **Entry Point**: Standard Python `if __name__ == '__main__'` pattern
+
+## Setting Up Your Environment
+
+Before creating Python ROS 2 nodes, ensure you have:
+
+1. **ROS 2 Installation**: A working ROS 2 installation (e.g., Humble Hawksbill)
+2. **Python Environment**: Python 3.8 or later
+3. **Workspace Setup**: Acolde workspace with the necessary packages
+
+### Installing Dependencies
+
+Most ROS 2 Python packages are installed with the ROS 2 distribution, but you can verify:
+
+```bash
+pip3 list | grep ros
+```
+
+## First Steps
+
+This chapter will guide you through creating your first Python ROS 2 nodes, starting with simple publishers and subscribers, then progressing to services and more complex examples. Each section builds on the previous one, providing hands-on experience with real code examples.
+
+## Summary
+
+rclpy provides the Python interface to ROS 2, enabling you to create sophisticated robotic applications using Python's simplicity and power. Understanding the basic structure and components of Python ROS 2 nodes is the first step toward building complex robotic systems.
+
+In the following sections, we'll dive into creating specific types of nodes, starting with publishers that send data to topics.

@@ -1,0 +1,74 @@
+---
+sidebar_position: 1
+title: 'Introduction to ROS 2 Architecture'
+keywords: [ros2, architecture, nodes, topics, services, middleware]
+description: 'Learn about ROS 2 as the middleware "nervous system" for humanoid robots'
+---
+
+# Introduction to ROS 2 Architecture
+
+## Learning Objectives
+
+After completing this chapter on ROS 2 Architecture Understanding, you will be able to:
+
+### Fundamental Concepts
+- Define ROS 2 and explain its role as a middleware system for robotics
+- Describe the "nervous system" analogy for understanding ROS 2's function
+- Explain the benefits of using a middleware system for robotics applications
+
+### Core Architecture Components
+- Define what a ROS 2 node is and explain its role as the fundamental building block
+- Describe the publish/subscribe pattern and how topics enable asynchronous communication
+- Explain the request/response pattern and how services enable synchronous communication
+
+### Communication Patterns
+- Identify when to use topics vs services for different communication needs
+- Understand the differences between asynchronous (topics) and synchronous (services) communication
+- Recognize Quality of Service (QoS) considerations in ROS 2 communication
+
+### System Integration
+- Understand how nodes, topics, and services work together in a complete system
+- Visualize the relationships between different components using architectural diagrams
+- Apply appropriate communication patterns to design simple robot systems
+
+### Practical Application
+- Analyze a complete example showing all three components working together
+- Design basic communication flows for simple robotic applications
+- Evaluate the appropriate use of each communication pattern based on system requirements
+
+## What is ROS 2?
+
+ROS 2 (Robot Operating System 2) is a flexible framework for writing robot software. It's a collection of tools, libraries, and conventions that aim to simplify the task of creating complex and robust robot behavior across a wide variety of robot platforms.
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [ROS 2 Nodes](./nodes) - Detailed explanation of nodes as the fundamental building blocks
+- [ROS 2 Topics](./topics) - Comprehensive coverage of publish/subscribe communication
+- [ROS 2 Services](./services) - In-depth look at request/response communication
+- [Architecture Diagrams](./diagrams) - Visual representations of ROS 2 concepts
+- [Integration Example](./integration-example) - Practical example combining all concepts
+- [Validation Exercises](./exercises) - Practice problems to reinforce learning
+- [Python ROS 2 Node Creation](../chapter-2/intro) - How to create your first ROS 2 nodes in Python
+- [AI-ROS Integration](../chapter-3/intro) - Connecting AI agents with ROS 2 controllers
+- [URDF Understanding](../chapter-4/intro) - How to define robot structure in ROS 2
+
+### Key Features of ROS 2
+
+- **Distributed**: Multiple processes can work together across different machines
+- **Middleware**: Provides communication infrastructure between different components
+- **Real-time capable**: Designed to support real-time systems
+- **Secure**: Includes security features for safe robot operation
+
+## RAG Indexing Metadata
+
+<!-- These metadata tags help the RAG system understand and categorize this content -->
+<!-- @metadata:domain robotics -->
+<!-- @metadata:subdomain ros2 -->
+<!-- @metadata:concept middleware -->
+<!-- @metadata:level beginner -->
+<!-- @metadata:prerequisites basic-python-knowledge -->
+
+## Summary
+
+This chapter introduced the fundamental concepts of ROS 2 architecture. In the next sections, we'll dive deeper into each component: nodes, topics, and services.

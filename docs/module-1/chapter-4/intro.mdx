@@ -1,0 +1,85 @@
+---
+sidebar_position: 1
+description: Introduction to URDF (Unified Robot Description Format) and its role in ROS 2
+---
+
+# Introduction to URDF: The Language of Robot Structure
+
+## Learning Objectives
+- Understand what URDF is and why it's essential in ROS 2
+- Recognize the relationship between URDF and humanoid robot representation
+- Identify the core components of a URDF file
+- Explain how URDF connects to ROS 2's robotic ecosystem
+
+## What is URDF?
+
+URDF stands for **Unified Robot Description Format**. It's an XML-based file format that describes the physical properties of a robot, including its structure, joints, and other attributes. Think of URDF as the "blueprint" or "DNA" of a robot in the ROS 2 ecosystem.
+
+Just as you might use a blueprint to understand how a building is constructed, ROS 2 uses URDF files to understand how a robot is structured - where its joints are located, how its links connect, what sensors it has, and how all these components relate to each other spatially.
+
+For an introduction to the ROS 2 architecture that URDF integrates with, see [Chapter 1: ROS 2 Architecture Understanding](../chapter-1/intro.mdx).
+
+## Why URDF Matters in ROS 2
+
+In the context of humanoid robotics, URDF is fundamental because it:
+
+1. **Defines Robot Structure**: Specifies how different parts of the robot (torso, limbs, head) are connected
+2. **Enables Simulation**: Allows simulation tools like Gazebo to create accurate virtual representations
+3. **Supports Visualization**: Tools like RViz can visualize the robot based on URDF descriptions
+4. **Facilitates Control**: Controllers can understand the kinematic chain and joint relationships
+5. **Integrates with ROS 2 Ecosystem**: Works with TF (Transforms) to maintain spatial relationships
+
+URDF works closely with the [nodes, topics, and services](../chapter-1/topics.mdx) that form the communication backbone of ROS 2 systems.
+
+## URDF in the Context of Humanoid Robots
+
+For humanoid robots, URDF becomes especially important because of the complex kinematic structure. A humanoid robot typically has:
+
+- A torso (main body)
+- Two arms with multiple joints each
+- Two legs with multiple joints each
+- A head with possible neck joints
+- Various sensors distributed across the body
+
+URDF describes how these components connect and move relative to each other, enabling ROS 2 nodes to understand and control the robot's physical structure. This connects directly to how [AI agents communicate with robot controllers](../chapter-3/ai-ros-integration.mdx).
+
+## The XML Structure of URDF
+
+URDF files are written in XML format, which uses tags to organize information hierarchically. A basic URDF structure looks like this:
+
+```xml
+<robot name="my_robot">
+  <link name="base_link">
+    <!-- Link properties like visual, collision, inertial -->
+  </link>
+
+  <joint name="joint_name" type="revolute">
+    <!-- Joint properties connecting links -->
+  </joint>
+
+  <link name="child_link">
+    <!-- Another link definition -->
+  </link>
+</robot>
+```
+
+## Related Concepts
+
+To better understand URDF, it's helpful to be familiar with:
+- [ROS 2 Architecture](../chapter-1/intro.mdx): Understanding how URDF fits into the broader ROS 2 system
+- [Python ROS 2 Nodes](../chapter-2/intro.mdx): How nodes interact with robot descriptions
+- [AI-ROS Integration](../chapter-3/intro.mdx): How AI agents use URDF information for control
+
+## Next Steps in This Chapter
+
+In the following sections, we'll explore:
+- The detailed structure of URDF elements (links, joints, visual properties) in [URDF XML Structure and Elements](./urdf-structure.mdx)
+- How to read and interpret existing URDF files in [Reading and Interpreting URDF Files](./reading-urdf.mdx)
+- Practical examples of humanoid robot URDF structures in [URDF Examples](./urdf-examples.mdx)
+- Tools for validating and visualizing URDF files in [URDF Validation](./urdf-validation.mdx)
+
+## Independent Validation
+
+After completing this section, you should be able to explain to a peer what URDF is and why it's important in the ROS 2 ecosystem, particularly for humanoid robots. You should understand that URDF serves as the bridge between abstract robot concepts and concrete physical implementations in simulation and control.
+
+For practical exercises with URDF, see [URDF Exercises](./urdf-exercises.mdx) and [Validation Exercises](./validation-exercises.mdx). You can also review the [Learning Objectives](./learning-objectives.mdx) for this chapter.

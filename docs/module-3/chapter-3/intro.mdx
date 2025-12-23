@@ -1,0 +1,40 @@
+---
+title: "Nav2: Path Planning for Humanoid Movement"
+---
+
+# Nav2: Path Planning for Humanoid Movement
+
+Navigation2 (Nav2) is ROS 2's navigation stack that provides path planning and execution capabilities. For humanoid robots, Nav2 requires specialized considerations due to their unique locomotion characteristics.
+
+## Humanoid-Specific Navigation Challenges
+
+Humanoid robots present unique navigation challenges compared to wheeled or tracked platforms:
+
+- **Stability Requirements**: Maintaining balance during movement
+- **Step Planning**: Navigating terrain with discrete step locations
+- **Dynamic Movement**: Managing center of mass during locomotion
+- **Foot Placement**: Precise positioning of feet for stable walking
+
+## Nav2 Components for Humanoid Navigation
+
+The Nav2 stack includes several key components adapted for humanoid movement:
+
+1. **Global Planner**: Creates high-level paths considering humanoid kinematics
+2. **Local Planner**: Adjusts paths in real-time to avoid obstacles
+3. **Controller**: Manages low-level movement commands
+4. **Behavior Trees**: Coordinates complex navigation behaviors
+
+## Path Planning Algorithms
+
+For humanoid robots, path planning must consider:
+
+- **Kinematic Constraints**: Joint limits and movement capabilities
+- **Stability Regions**: Maintaining center of mass within support polygons
+- **Step Sequences**: Planning footstep locations for stable locomotion
+- **Terrain Analysis**: Evaluating surface traversability
+
+The navigation system must also handle dynamic environments and adapt to changing conditions while maintaining the humanoid's balance and safety.
+
+## Integration with Isaac Ecosystem
+
+The integration of Nav2 with Isaac Sim and Isaac ROS creates a comprehensive pipeline from simulation to deployment, enabling humanoid robots to navigate complex environments with confidence.

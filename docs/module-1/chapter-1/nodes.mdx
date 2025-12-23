@@ -1,0 +1,173 @@
+---
+sidebar_position: 3
+title: 'ROS 2 Nodes - The Building Blocks'
+keywords: [ros2, nodes, processes, components]
+description: 'Understanding ROS 2 nodes as the fundamental building blocks of robot software'
+---
+
+# ROS 2 Nodes - The Building Blocks
+
+## Learning Objectives
+
+After completing this section, you will be able to:
+- Define what a ROS 2 node is and its role in the system
+- Explain the lifecycle and characteristics of nodes
+- Understand how nodes interact with other ROS 2 components
+- Create a mental model of how nodes work together in a robotic system
+
+## What is a ROS 2 Node?
+
+A **node** is the fundamental building block of a ROS 2 system. It's an executable process that performs computation and communicates with other nodes. Think of nodes as individual workers in a factory, each with a specific job to do, but able to coordinate with other workers to achieve a common goal.
+
+### Key Characteristics of Nodes
+
+1. **Process-based**: Each node runs as a separate process on the system
+2. **Specialized**: Each node typically performs one specific function
+3. **Communicative**: Nodes communicate with other nodes through topics, services, and actions
+4. **Configurable**: Nodes can accept parameters to modify their behavior
+5. **Monitored**: The system can track node status and health
+
+### The Node Lifecycle
+
+ROS 2 nodes go through several lifecycle states:
+
+```
+[Unconfigured] → [Inactive] → [Active] → [Finalized]
+     ↑                                         ↓
+     └───────────────────────────────────────────┘
+```
+
+- **Unconfigured**: The node has been created but not yet configured
+- **Inactive**: The node is configured but not actively running
+- **Active**: The node is running and performing its function
+- **Finalized**: The node has been shut down and cleaned up
+
+## Creating and Managing Nodes
+
+### Node Creation
+
+In most cases, you create a node by:
+1. Inheriting from the Node base class in your chosen language
+2. Implementing the specific functionality your node needs
+3. Defining publishers, subscribers, services, or actions as needed
+4. Running the node in the ROS 2 system
+
+### Example Node Structure (Python)
+
+```python
+import rclpy
+from rclpy.node import Node
+
+class MyRobotNode(Node):
+    def __init__(self):
+        super().__init__('my_robot_node')
+        # Initialize publishers, subscribers, services, etc.
+        self.get_logger().info('MyRobotNode initialized')
+
+    def process_data(self, data):
+        # Process data and potentially publish results
+        pass
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = MyRobotNode()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+## Types of Nodes
+
+### Sensor Nodes
+- Collect data from physical sensors (cameras, LIDAR, IMU, etc.)
+- Publish sensor data to topics for other nodes to consume
+- Example: Camera driver node that publishes image data
+
+### Processing Nodes
+- Perform computations on data received from other nodes
+- May publish results to new topics or provide services
+- Example: Object detection node that processes image data
+
+### Controller Nodes
+- Send commands to actuators or other hardware components
+- May subscribe to topics with desired commands or provide services
+- Example: Motor controller node that moves robot joints
+
+### Coordinator Nodes
+- Coordinate the activities of multiple other nodes
+- May orchestrate complex behaviors or manage state
+- Example: Navigation stack coordinator
+
+## Node Communication
+
+Nodes communicate with each other through several mechanisms:
+
+### Through Topics
+- Nodes publish data to topics for others to consume
+- Nodes subscribe to topics to receive data
+- Communication is asynchronous and decoupled
+
+### Through Services
+- Nodes provide services that other nodes can request
+- Communication is synchronous with request/response pattern
+
+### Through Actions
+- For long-running tasks with feedback
+- Combines features of topics and services
+
+## Node Best Practices
+
+### Single Responsibility
+Each node should have a single, well-defined purpose. This makes nodes easier to test, debug, and reuse.
+
+### Loose Coupling
+Nodes should interact through well-defined interfaces rather than direct dependencies on other nodes' internal implementation.
+
+### Robust Error Handling
+Nodes should handle errors gracefully and provide appropriate logging for debugging.
+
+### Proper Resource Management
+Nodes should clean up resources when shutting down and manage memory efficiently.
+
+## Real-World Example: Mobile Robot Node Structure
+
+Consider a simple mobile robot that needs to navigate a room:
+
+```
+[Sensor Node] → [Perception Node] → [Planning Node] → [Controller Node]
+     ↓                ↓                   ↓              ↓
+[IMU Data]    [Obstacle Map]     [Navigation Plan]  [Motor Commands]
+```
+
+Each node performs its specific function:
+- **Sensor Node**: Reads IMU and range sensors
+- **Perception Node**: Processes sensor data to detect obstacles
+- **Planning Node**: Plans a path around obstacles
+- **Controller Node**: Sends motor commands to execute the plan
+
+## Summary
+
+Nodes are the fundamental building blocks of ROS 2 systems. They represent individual processes that perform specific functions and communicate with other nodes through various mechanisms. Understanding nodes is crucial for designing and implementing effective robotic systems with ROS 2.
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [Introduction to ROS 2 Architecture](./intro) - Overview of the entire chapter
+- [ROS 2 Middleware](./middleware) - How nodes fit into the middleware system
+- [ROS 2 Topics](./topics) - How nodes communicate via publish/subscribe
+- [ROS 2 Services](./services) - How nodes provide and use services
+- [Architecture Diagrams](./diagrams) - Visual representations of node interactions
+- [Integration Example](./integration-example) - Complete example with multiple nodes
+- [Validation Exercises](./exercises) - Practice problems on node concepts
+
+## RAG Indexing Metadata
+
+<!-- @metadata:domain robotics -->
+<!-- @metadata:subdomain ros2 -->
+<!-- @metadata:concept nodes -->
+<!-- @metadata:concept processes -->
+<!-- @metadata:level beginner -->
+<!-- @metadata:prerequisites basic-python-knowledge -->

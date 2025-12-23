@@ -1,0 +1,512 @@
+---
+sidebar_position: 4
+title: 'Creating a Python Service Server'
+keywords: [ros2, python, service, server, rclpy, request-response, tutorial]
+description: 'Step-by-step guide to creating a ROS 2 service server in Python using rclpy'
+---
+
+# Creating a Python Service Server
+
+## Learning Objectives
+
+After completing this section, you will be able to:
+- Create a ROS 2 service server using Python and rclpy
+- Define and implement service callbacks to handle requests
+- Choose appropriate service types for your operations
+- Test and verify service server functionality
+- Understand the synchronous nature of service communication
+
+## Introduction to Service Servers
+
+A **service server** in ROS 2 is a node that provides a specific functionality that other nodes (clients) can request. Service servers implement the request/response communication pattern, where a client sends a request to the server and waits for a response. This is different from the publish/subscribe pattern, as it's synchronous and provides immediate feedback.
+
+### Key Characteristics of Service Servers
+- Provide specific functionality to other nodes
+- Handle requests synchronously
+- Return responses to the requesting client
+- Implement well-defined service interfaces
+- Block during request processing (unless handled asynchronously)
+
+## Basic Service Server Structure
+
+Let's start with the most basic service server using the built-in `AddTwoInts` service:
+
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class MinimalService(Node):
+    def __init__(self):
+        super().__init__('minimal_service')
+        self.srv = self.create_service(AddTwoInts, 'add_two_ints', self.add_two_ints_callback)
+
+    def add_two_ints_callback(self, request, response):
+        response.sum = request.a + request.b
+        self.get_logger().info(f'Returning: {request.a} + {request.b} = {response.sum}')
+        return response
+
+def main(args=None):
+    rclpy.init(args=args)
+    minimal_service = MinimalService()
+    rclpy.spin(minimal_service)
+    minimal_service.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+### Code Breakdown
+
+1. **Imports**: Import rclpy, Node class, and service type (AddTwoInts)
+2. **Node Class**: Inherits from `rclpy.node.Node`
+3. **Service Creation**: `self.create_service(AddTwoInts, 'add_two_ints', self.add_two_ints_callback)`
+   - `AddTwoInts`: Service type definition
+   - `'add_two_ints'`: Service name
+   - `self.add_two_ints_callback`: Function to handle requests
+4. **Callback Function**: Takes request and response objects, processes request, and returns response
+5. **Main Function**: Initialize rclpy, create node, spin, and cleanup
+
+## Step-by-Step Creation Process
+
+### Step 1: Set up the basic structure
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts  # or another appropriate service type
+
+class MyServiceServer(Node):
+    def __init__(self):
+        super().__init__('my_service_server')
+        # Initialize service server here
+```
+
+### Step 2: Create the service server
+```python
+# Inside the __init__ method
+self.service = self.create_service(
+    AddTwoInts,                    # Service type
+    'my_service_name',            # Service name
+    self.service_callback         # Callback function
+)
+```
+
+### Step 3: Implement the service callback
+```python
+def service_callback(self, request, response):
+    # Process the request
+    # Set values in the response
+    # Return the response
+    response.sum = request.a + request.b
+    return response
+```
+
+### Step 4: Complete the main function
+```python
+def main(args=None):
+    rclpy.init(args=args)
+    node = MyServiceServer()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+```
+
+## Common Service Types
+
+### Built-in Service Types
+- `std_srvs.srv.Empty` - Simple service that takes no parameters and returns nothing
+- `std_srvs.srv.SetBool` - Sets a boolean value, returns success/failure
+- `std_srvs.srv.Trigger` - Triggers an action, returns success/failure with message
+
+### Example Service Types
+- `example_interfaces.srv.AddTwoInts` - Adds two integers
+- `example_interfaces.srv.SetBool` - Sets a boolean value
+- `example_interfaces.srv.SetString` - Sets a string value
+
+## Creating Custom Services
+
+While built-in services are useful for learning, you'll often need custom services. To create a custom service:
+
+### Step 1: Define the service interface
+Create a file named `CalculateDistance.srv`:
+```
+# Request part
+float64 x1
+float64 y1
+float64 x2
+float64 y2
+---
+# Response part
+float64 distance
+bool success
+string message
+```
+
+### Step 2: Use the custom service in Python
+```python
+# Assuming the custom service is built and available
+from your_package.srv import CalculateDistance
+
+class DistanceCalculator(Node):
+    def __init__(self):
+        super().__init__('distance_calculator')
+        self.service = self.create_service(
+            CalculateDistance,
+            'calculate_distance',
+            self.calculate_distance_callback
+        )
+
+    def calculate_distance_callback(self, request, response):
+        import math
+        dx = request.x2 - request.x1
+        dy = request.y2 - request.y1
+        distance = math.sqrt(dx*dx + dy*dy)
+
+        response.distance = distance
+        response.success = True
+        response.message = f'Distance between ({request.x1}, {request.y1}) and ({request.x2}, {request.y2}) is {distance}'
+
+        return response
+```
+
+## Advanced Service Server Features
+
+### Asynchronous Service Processing
+
+For services that take a long time to process, you can handle them asynchronously:
+
+```python
+import rclpy
+from rclpy.node import Node
+from rclpy.executors import MultiThreadedExecutor
+from example_interfaces.srv import Trigger
+import threading
+import time
+
+class AsyncServiceServer(Node):
+    def __init__(self):
+        super().__init__('async_service_server')
+        self.service = self.create_service(
+            Trigger,
+            'async_operation',
+            self.async_operation_callback
+        )
+
+    def async_operation_callback(self, request, response):
+        # For truly async processing, you might want to use threading
+        # or return immediately and use a different mechanism for status updates
+        self.get_logger().info('Starting long operation...')
+
+        # Simulate a long-running operation
+        time.sleep(2)
+
+        response.success = True
+        response.message = 'Long operation completed'
+        self.get_logger().info('Long operation completed')
+
+        return response
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = AsyncServiceServer()
+
+    # Use a multi-threaded executor to handle multiple requests
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
+
+    try:
+        executor.spin()
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+```
+
+### Service with Parameter Validation
+
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import SetBool
+
+class ValidatedService(Node):
+    def __init__(self):
+        super().__init__('validated_service')
+        self.service = self.create_service(
+            SetBool,
+            'set_flag',
+            self.set_flag_callback
+        )
+        self.current_flag = False
+
+    def set_flag_callback(self, request, response):
+        # Validate the request
+        if not isinstance(request.data, bool):
+            response.success = False
+            response.message = 'Invalid data type: expected boolean'
+            return response
+
+        # Process the request
+        self.current_flag = request.data
+        response.success = True
+        response.message = f'Flag set to {request.data}. Current flag: {self.current_flag}'
+
+        self.get_logger().info(f'Flag updated: {request.data}')
+        return response
+```
+
+## Practical Example: Robot Control Service
+
+Let's create a more realistic example of a service that controls a robot:
+
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import SetBool
+from geometry_msgs.msg import Twist
+from std_msgs.msg import Bool
+
+class RobotControlService(Node):
+    def __init__(self):
+        super().__init__('robot_control_service')
+
+        # Service to enable/disable robot movement
+        self.enable_service = self.create_service(
+            SetBool,
+            'enable_robot',
+            self.enable_robot_callback
+        )
+
+        # Publisher to send velocity commands
+        self.cmd_vel_publisher = self.create_publisher(Twist, 'cmd_vel', 10)
+
+        # Publisher to indicate robot status
+        self.status_publisher = self.create_publisher(Bool, 'robot_enabled', 10)
+
+        # Internal state
+        self.robot_enabled = False
+
+        self.get_logger().info('Robot control service initialized')
+
+    def enable_robot_callback(self, request, response):
+        self.robot_enabled = request.data
+
+        # Publish status update
+        status_msg = Bool()
+        status_msg.data = self.robot_enabled
+        self.status_publisher.publish(status_msg)
+
+        if self.robot_enabled:
+            response.success = True
+            response.message = 'Robot enabled successfully'
+            self.get_logger().info('Robot enabled')
+        else:
+            response.success = True
+            response.message = 'Robot disabled successfully'
+            # Send stop command when disabling
+            stop_msg = Twist()
+            stop_msg.linear.x = 0.0
+            stop_msg.angular.z = 0.0
+            self.cmd_vel_publisher.publish(stop_msg)
+            self.get_logger().info('Robot disabled')
+
+        return response
+
+def main(args=None):
+    rclpy.init(args=args)
+    robot_service = RobotControlService()
+
+    try:
+        rclpy.spin(robot_service)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        robot_service.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+## Service Callback Patterns
+
+### Pattern 1: Simple Calculation
+```python
+def calculate_callback(self, request, response):
+    response.result = request.input1 + request.input2
+    return response
+```
+
+### Pattern 2: State Management
+```python
+def __init__(self):
+    super().__init__('state_service')
+    self.current_state = "IDLE"
+    self.service = self.create_service(SetString, 'set_state', self.set_state_callback)
+
+def set_state_callback(self, request, response):
+    old_state = self.current_state
+    self.current_state = request.data
+
+    response.success = True
+    response.message = f'State changed from {old_state} to {self.current_state}'
+    return response
+```
+
+### Pattern 3: External System Interaction
+```python
+def external_call_callback(self, request, response):
+    try:
+        # Simulate calling an external system
+        result = self.call_external_system(request.parameters)
+        response.success = True
+        response.result = result
+        response.message = 'External call successful'
+    except Exception as e:
+        response.success = False
+        response.message = f'External call failed: {str(e)}'
+
+    return response
+```
+
+## Testing Your Service Server
+
+### Method 1: Using command line tools
+```bash
+# In one terminal, run your service server
+python3 service_server.py
+
+# In another terminal, call the service
+ros2 service call /add_two_ints example_interfaces/srv/AddTwoInts "{a: 1, b: 2}"
+```
+
+### Method 2: Create a simple service client for testing
+```python
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class TestClient(Node):
+    def __init__(self):
+        super().__init__('test_client')
+        self.cli = self.create_client(AddTwoInts, 'add_two_ints')
+
+        while not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Service not available, waiting again...')
+
+        self.req = AddTwoInts.Request()
+
+    def send_request(self, a, b):
+        self.req.a = a
+        self.req.b = b
+        future = self.cli.call_async(self.req)
+        return future
+
+def main(args=None):
+    rclpy.init(args=args)
+    test_client = TestClient()
+
+    future = test_client.send_request(1, 2)
+
+    rclpy.spin_until_future_complete(test_client, future)
+
+    if future.result() is not None:
+        response = future.result()
+        print(f'Result: {response.sum}')
+    else:
+        print('Service call failed')
+
+    test_client.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+## Best Practices
+
+### 1. Handle errors gracefully
+```python
+def robust_callback(self, request, response):
+    try:
+        # Process request
+        result = self.process_request(request)
+        response.result = result
+        response.success = True
+        response.message = 'Success'
+    except ValueError as e:
+        response.success = False
+        response.message = f'Invalid input: {str(e)}'
+    except Exception as e:
+        response.success = False
+        response.message = f'Processing error: {str(e)}'
+
+    return response
+```
+
+### 2. Validate inputs before processing
+```python
+def validated_callback(self, request, response):
+    # Validate inputs
+    if request.a < 0 or request.b < 0:
+        response.success = False
+        response.message = 'Inputs must be non-negative'
+        return response
+
+    # Process valid inputs
+    response.sum = request.a + request.b
+    response.success = True
+    return response
+```
+
+### 3. Use appropriate service types
+- Use `Trigger` for simple operations that return success/failure
+- Use `SetBool` for setting boolean parameters
+- Use `AddTwoInts` for mathematical operations (or create custom services)
+- Create custom services for complex operations
+
+### 4. Log appropriately
+- Log service requests for debugging
+- Log errors and warnings
+- Don't over-log in high-frequency services
+
+## Common Pitfalls and Solutions
+
+### Pitfall 1: Forgetting to return the response
+**Solution**: Always return the response object from your callback function
+
+### Pitfall 2: Not handling exceptions in callbacks
+**Solution**: Use try/catch blocks to handle potential errors gracefully
+
+### Pitfall 3: Blocking for too long in synchronous services
+**Solution**: For long operations, consider using actions instead of services
+
+### Pitfall 4: Not validating request parameters
+**Solution**: Always validate inputs before processing
+
+## Service vs. Topic vs. Action Comparison
+
+| Communication Type | Pattern | Use Case | Synchronous/Asynchronous |
+|-------------------|---------|----------|-------------------------|
+| Topics | Publish/Subscribe | Continuous data streams | Asynchronous |
+| Services | Request/Response | One-time operations | Synchronous |
+| Actions | Goal/Feedback/Result | Long-running tasks | Asynchronous with feedback |
+
+## Summary
+
+Creating a service server in Python with rclpy involves:
+1. Setting up the basic node structure
+2. Creating a service server with appropriate service type and name
+3. Implementing a callback function to handle requests and return responses
+4. Properly initializing and shutting down the ROS 2 system
+
+Service servers provide synchronous request/response communication, making them ideal for operations that need to return results immediately. Understanding how to create and configure service servers is essential for developing interactive ROS 2 applications.
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [Introduction to Python ROS 2 Nodes](./intro) - Overview of Python ROS 2 development
+- [Creating a Python Service Client](./service-client) - Calling services from Python
+- [ROS 2 Services](../chapter-1/services) - Theoretical background on request/response
+- [Creating a Python Publisher Node](./publisher-node) - Asynchronous communication alternative
+- [Integration Example](../chapter-1/integration-example) - Complete system example

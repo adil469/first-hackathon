@@ -1,0 +1,138 @@
+/**
+ * CSS files with the .module.css suffix will be treated as CSS modules
+ * and scoped locally.
+ */
+
+.heroBanner {
+  padding: 6rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0a0f2c 0%, #131a36 100%); /* Deep navy gradient background */
+  margin-bottom: 2rem;
+  border-bottom: 1px solid rgba(0, 212, 170, 0.2); /* Subtle teal accent line */
+  box-shadow: 0 4px 6px -1px rgba(0, 212, 170, 0.1); /* Soft glow effect */
+}
+
+@media screen and (max-width: 996px) {
+  .heroBanner {
+    padding: 3rem 1rem;
+  }
+}
+
+.heroContent {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.buttons {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+}
+
+.buttons .button {
+  border-radius: var(--ifm-global-radius);
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(0, 212, 170, 0.3); /* Subtle teal border */
+}
+
+.buttons .button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 212, 170, 0.2); /* Soft glow effect */
+  border-color: rgba(0, 212, 170, 0.6); /* More visible border on hover */
+}
+
+@media screen and (max-width: 576px) {
+  .buttons {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
+.featuresSection {
+  padding: 4rem 0;
+  background-color: var(--ifm-background-color); /* Consistent dark background */
+}
+
+.featureCard {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease; /* Smooth transition for all properties */
+  margin-bottom: 1.5rem;
+  border-radius: var(--ifm-card-radius); /* More rounded corners for module cards */
+  box-shadow: var(--ifm-global-shadow-md);
+  border: 1px solid rgba(0, 212, 170, 0.1); /* Subtle teal border */
+  background: rgba(19, 26, 54, 0.8); /* Slightly transparent for subtle blur effect */
+  backdrop-filter: blur(10px); /* Subtle blur effect */
+  position: relative;
+  overflow: hidden;
+}
+
+.featureCard:hover {
+  transform: translateY(-5px); /* Lift effect on hover */
+  box-shadow: var(--ifm-global-shadow-tl); /* Enhanced shadow on hover */
+  border-color: rgba(0, 212, 170, 0.3); /* Slightly more visible border on hover */
+  background: rgba(25, 34, 68, 0.9); /* Slightly lighter background on hover */
+}
+
+.featureCard h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.featureCard .card__footer {
+  margin-top: auto;
+  padding-top: 1.5rem;
+  text-align: center;
+}
+
+/* Enhanced visual hierarchy */
+.hero__title {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+  color: var(--ifm-font-color-base); /* Light text for dark background */
+  background: linear-gradient(135deg, #00d4aa, #00b894); /* Gradient accent */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero__subtitle {
+  font-size: 1.25rem;
+  color: var(--ifm-color-content-secondary); /* Light gray text for contrast */
+  margin-bottom: 2rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .hero__title {
+    font-size: 2.25rem;
+  }
+
+  .hero__subtitle {
+    font-size: 1.1rem;
+  }
+
+  .featuresSection {
+    padding: 2rem 0;
+  }
+}
+
+@media (max-width: 576px) {
+  .hero__title {
+    font-size: 1.75rem;
+  }
+}

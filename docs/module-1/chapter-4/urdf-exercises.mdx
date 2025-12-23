@@ -1,0 +1,431 @@
+---
+sidebar_position: 7
+description: Practical exercises for modifying URDF files
+---
+
+# URDF Modification Exercises
+
+## Learning Objectives
+- Apply URDF modification techniques through hands-on exercises
+- Practice safe modification workflows
+- Validate URDF changes for correctness
+- Build confidence in URDF editing skills
+
+## Exercise 1: Color and Material Changes
+
+### Scenario
+You have a humanoid robot with grey-colored limbs, but you need to make the left arm blue for identification purposes.
+
+### Starting URDF
+```xml
+<link name="left_upper_arm">
+  <visual>
+    <origin xyz="0 0 -0.15"/>
+    <geometry>
+      <cylinder radius="0.04" length="0.3"/>
+    </geometry>
+    <material name="grey">
+      <color rgba="0.5 0.5 0.5 1.0"/>
+    </material>
+  </visual>
+  <collision>
+    <origin xyz="0 0 -0.15"/>
+    <geometry>
+      <cylinder radius="0.04" length="0.3"/>
+    </geometry>
+  </collision>
+  <inertial>
+    <mass value="1.5"/>
+    <inertia ixx="0.02" ixy="0.0" ixz="0.0" iyy="0.02" iyz="0.0" izz="0.002"/>
+  </inertial>
+</link>
+```
+
+### Task
+Modify the left_upper_arm link to have a blue color instead of grey.
+
+### Solution
+```xml
+<link name="left_upper_arm">
+  <visual>
+    <origin xyz="0 0 -0.15"/>
+    <geometry>
+      <cylinder radius="0.04" length="0.3"/>
+    </geometry>
+    <material name="blue">
+      <color rgba="0.0 0.0 1.0 1.0"/>  <!-- Changed to blue -->
+    </material>
+  </visual>
+  <collision>
+    <origin xyz="0 0 -0.15"/>
+    <geometry>
+      <cylinder radius="0.04" length="0.3"/>
+    </geometry>
+  </collision>
+  <inertial>
+    <mass value="1.5"/>
+    <inertia ixx="0.02" ixy="0.0" ixz="0.0" iyy="0.02" iyz="0.0" izz="0.002"/>
+  </inertial>
+</link>
+```
+
+### Validation
+- Check that the material name and color values are correct
+- Ensure the rest of the link properties remain unchanged
+- Verify the color change doesn't affect physics properties
+
+## Exercise 2: Extending Limb Length
+
+### Scenario
+The robot's reach is limited, so you need to extend the right forearm by 10cm while maintaining the same mass distribution.
+
+### Starting URDF
+```xml
+<link name="right_forearm">
+  <visual>
+    <origin xyz="0 0 -0.1"/>
+    <geometry>
+      <cylinder radius="0.03" length="0.2"/>
+    </geometry>
+    <material name="grey">
+      <color rgba="0.5 0.5 0.5 1.0"/>
+    </material>
+  </visual>
+  <collision>
+    <origin xyz="0 0 -0.1"/>
+    <geometry>
+      <cylinder radius="0.03" length="0.2"/>
+    </geometry>
+  </collision>
+  <inertial>
+    <mass value="1.0"/>
+    <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.001"/>
+  </inertial>
+</link>
+
+<joint name="right_elbow_joint" type="revolute">
+  <parent link="right_upper_arm"/>
+  <child link="right_forearm"/>
+  <origin xyz="0 0 -0.3"/>
+  <axis xyz="1 0 0"/>
+  <limit lower="-1.57" upper="1.57"/>
+</joint>
+```
+
+### Task
+Extend the right_forearm by 10cm (change from 0.2m to 0.3m) and adjust the origin and joint position accordingly.
+
+### Solution
+```xml
+<link name="right_forearm">
+  <visual>
+    <origin xyz="0 0 -0.15"/>  <!-- Changed from -0.1 to -0.15 to center origin -->
+    <geometry>
+      <cylinder radius="0.03" length="0.3"/>  <!-- Changed from 0.2 to 0.3 -->
+    </geometry>
+    <material name="grey">
+      <color rgba="0.5 0.5 0.5 1.0"/>
+    </material>
+  </visual>
+  <collision>
+    <origin xyz="0 0 -0.15"/>  <!-- Changed from -0.1 to -0.15 to center origin -->
+    <geometry>
+      <cylinder radius="0.03" length="0.3"/>  <!-- Changed from 0.2 to 0.3 -->
+    </geometry>
+  </collision>
+  <inertial>
+    <mass value="1.2"/>  <!-- Increased slightly for longer limb -->
+    <inertia ixx="0.015" ixy="0.0" ixz="0.0" iyy="0.015" iyz="0.0" izz="0.001"/>  <!-- Adjusted for longer cylinder -->
+  </inertial>
+</link>
+
+<joint name="right_elbow_joint" type="revolute">
+  <parent link="right_upper_arm"/>
+  <child link="right_forearm"/>
+  <origin xyz="0 0 -0.35"/>  <!-- Changed from -0.3 to -0.35 to account for longer forearm -->
+  <axis xyz="1 0 0"/>
+  <limit lower="-1.57" upper="1.57"/>
+</joint>
+```
+
+### Validation
+- Check that the length matches the cylinder dimensions
+- Verify that the origin is centered relative to the new length
+- Ensure the joint position accounts for the longer limb
+- Adjust mass and inertia appropriately for the larger size
+
+## Exercise 3: Adding a Sensor Mount
+
+### Scenario
+You need to add a small sensor mount to the top of the robot's head for a camera.
+
+### Starting URDF
+```xml
+<link name="head">
+  <visual>
+    <geometry>
+      <sphere radius="0.1"/>
+    </geometry>
+    <material name="grey">
+      <color rgba="0.5 0.5 0.5 1.0"/>
+    </material>
+  </visual>
+  <collision>
+    <geometry>
+      <sphere radius="0.1"/>
+    </geometry>
+  </collision>
+  <inertial>
+    <mass value="2.0"/>
+    <inertia ixx="0.02" ixy="0.0" ixz="0.0" iyy="0.02" iyz="0.0" izz="0.02"/>
+  </inertial>
+</link>
+
+<joint name="torso_to_head" type="revolute">
+  <parent link="torso"/>
+  <child link="head"/>
+  <origin xyz="0 0 0.5"/>
+  <axis xyz="0 1 0"/>
+  <limit lower="-0.5" upper="0.5"/>
+</joint>
+```
+
+### Task
+Add a small sensor mount on top of the head (0.15m above the head center) and connect it with a fixed joint.
+
+### Solution
+```xml
+<link name="head">
+  <visual>
+    <geometry>
+      <sphere radius="0.1"/>
+    </geometry>
+    <material name="grey">
+      <color rgba="0.5 0.5 0.5 1.0"/>
+    </material>
+  </visual>
+  <collision>
+    <geometry>
+      <sphere radius="0.1"/>
+    </geometry>
+  </collision>
+  <inertial>
+    <mass value="2.0"/>
+    <inertia ixx="0.02" ixy="0.0" ixz="0.0" iyy="0.02" iyz="0.0" izz="0.02"/>
+  </inertial>
+</link>
+
+<!-- New sensor mount link -->
+<link name="camera_mount">
+  <visual>
+    <geometry>
+      <box size="0.02 0.02 0.01"/>
+    </geometry>
+    <material name="black">
+      <color rgba="0.0 0.0 0.0 1.0"/>
+    </material>
+  </visual>
+  <collision>
+    <geometry>
+      <box size="0.02 0.02 0.01"/>
+    </geometry>
+  </collision>
+  <inertial>
+    <mass value="0.05"/>
+    <inertia ixx="0.000001" ixy="0.0" ixz="0.0" iyy="0.000001" iyz="0.0" izz="0.0000005"/>
+  </inertial>
+</link>
+
+<joint name="torso_to_head" type="revolute">
+  <parent link="torso"/>
+  <child link="head"/>
+  <origin xyz="0 0 0.5"/>
+  <axis xyz="0 1 0"/>
+  <limit lower="-0.5" upper="0.5"/>
+</joint>
+
+<!-- New joint connecting head to camera mount -->
+<joint name="head_to_camera_mount" type="fixed">
+  <parent link="head"/>
+  <child link="camera_mount"/>
+  <origin xyz="0 0 0.15"/>  <!-- 15cm above head center -->
+</joint>
+```
+
+### Validation
+- Check that the new link has proper visual, collision, and inertial properties
+- Verify the joint connects the correct parent and child links
+- Ensure the position (0.15m) is above the head's radius (0.1m)
+- Confirm the joint type is appropriate (fixed for a rigid sensor mount)
+
+## Exercise 4: Adjusting Joint Limits
+
+### Scenario
+The robot's shoulder joint limits are too restrictive for a new task. You need to increase the range of motion.
+
+### Starting URDF
+```xml
+<joint name="left_shoulder_joint" type="revolute">
+  <parent link="torso"/>
+  <child link="left_upper_arm"/>
+  <origin xyz="0.2 0 0.4"/>
+  <axis xyz="0 1 0"/>
+  <limit lower="-1.0" upper="1.0" effort="20" velocity="2"/>
+</joint>
+```
+
+### Task
+Increase the shoulder joint range from ±57° (±1.0 rad) to ±90° (±1.57 rad) while maintaining other properties.
+
+### Solution
+```xml
+<joint name="left_shoulder_joint" type="revolute">
+  <parent link="torso"/>
+  <child link="left_upper_arm"/>
+  <origin xyz="0.2 0 0.4"/>
+  <axis xyz="0 1 0"/>
+  <limit lower="-1.57" upper="1.57" effort="20" velocity="2"/>  <!-- Changed limits from ±1.0 to ±1.57 -->
+</joint>
+```
+
+### Validation
+- Check that the lower limit is less than the upper limit
+- Verify the values are in radians (not degrees)
+- Ensure effort and velocity values remain appropriate
+- Consider if the physical robot can achieve these new limits
+
+## Exercise 5: Complete Modification Challenge
+
+### Scenario
+You need to modify a simple robot to make it taller by adding an extension to its torso while maintaining balance.
+
+### Starting URDF
+```xml
+<robot name="simple_robot">
+  <link name="base">
+    <visual>
+      <geometry><cylinder radius="0.1" length="0.2"/></geometry>
+    </visual>
+    <inertial>
+      <mass value="5.0"/>
+      <inertia ixx="0.05" ixy="0.0" ixz="0.0" iyy="0.05" iyz="0.0" izz="0.025"/>
+    </inertial>
+  </link>
+
+  <link name="torso">
+    <visual>
+      <origin xyz="0 0 0.15"/>
+      <geometry><box size="0.2 0.15 0.3"/></geometry>
+    </visual>
+    <inertial>
+      <mass value="8.0"/>
+      <inertia ixx="0.3" ixy="0.0" ixz="0.0" iyy="0.4" iyz="0.0" izz="0.2"/>
+    </inertial>
+  </link>
+
+  <joint name="base_to_torso" type="fixed">
+    <parent link="base"/>
+    <child link="torso"/>
+    <origin xyz="0 0 0.1"/>
+  </joint>
+
+  <link name="head">
+    <visual>
+      <geometry><sphere radius="0.08"/></geometry>
+    </visual>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.004" ixy="0.0" ixz="0.0" iyy="0.004" iyz="0.0" izz="0.004"/>
+    </inertial>
+  </link>
+
+  <joint name="torso_to_head" type="revolute">
+    <parent link="torso"/>
+    <child link="head"/>
+    <origin xyz="0 0 0.3"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-0.5" upper="0.5"/>
+  </joint>
+</robot>
+```
+
+### Task
+Add a 20cm extension to the torso to make the robot taller, adjusting all related positions and properties.
+
+### Solution
+```xml
+<robot name="simple_robot">
+  <link name="base">
+    <visual>
+      <geometry><cylinder radius="0.1" length="0.2"/></geometry>
+    </visual>
+    <inertial>
+      <mass value="5.0"/>
+      <inertia ixx="0.05" ixy="0.0" ixz="0.0" iyy="0.05" iyz="0.0" izz="0.025"/>
+    </inertial>
+  </link>
+
+  <link name="torso">
+    <visual>
+      <origin xyz="0 0 0.25"/>  <!-- Changed from 0.15 to 0.25 (half of new 0.5m length) -->
+      <geometry><box size="0.2 0.15 0.5"/>  <!-- Changed length from 0.3 to 0.5 -->
+    </geometry>
+    <inertial>
+      <mass value="10.0"/>  <!-- Increased mass for longer torso -->
+      <inertia ixx="0.5" ixy="0.0" ixz="0.0" iyy="0.6" iyz="0.0" izz="0.2"/>  <!-- Adjusted for new dimensions -->
+    </inertial>
+  </link>
+
+  <joint name="base_to_torso" type="fixed">
+    <parent link="base"/>
+    <child link="torso"/>
+    <origin xyz="0 0 0.1"/>
+  </joint>
+
+  <link name="head">
+    <visual>
+      <geometry><sphere radius="0.08"/></geometry>
+    </visual>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.004" ixy="0.0" ixz="0.0" iyy="0.004" iyz="0.0" izz="0.004"/>
+    </inertial>
+  </link>
+
+  <joint name="torso_to_head" type="revolute">
+    <parent link="torso"/>
+    <child link="head"/>
+    <origin xyz="0 0 0.5"/>  <!-- Changed from 0.3 to 0.5 to match new torso length -->
+    <axis xyz="0 1 0"/>
+    <limit lower="-0.5" upper="0.5"/>
+  </joint>
+</robot>
+```
+
+### Validation
+- Check that the torso geometry reflects the new length (0.5m)
+- Verify that the origin is properly centered (0.25m, half of 0.5m)
+- Ensure the head joint position matches the new torso length
+- Adjust mass and inertia appropriately for the larger torso
+- Confirm the robot maintains physical plausibility
+
+## Best Practices Review
+
+As you work through these exercises, remember:
+
+1. **Always backup** the original URDF before making changes
+2. **Make incremental changes** and test after each modification
+3. **Validate the kinematic chain** remains intact
+4. **Check that all units are consistent** (meters, kg, radians)
+5. **Ensure physical plausibility** of your modifications
+6. **Update related elements** when making structural changes
+
+## Independent Validation
+
+After completing these exercises, you should be able to:
+1. Modify URDF files confidently following safe practices
+2. Adjust related elements when making structural changes
+3. Validate your modifications for correctness
+4. Understand the impact of changes on the overall robot structure
+
+Try creating your own modification exercise by selecting a part of a URDF file and planning a specific change, then implement and validate it.

@@ -1,0 +1,53 @@
+.features {
+  display: flex;
+  align-items: center;
+  padding: 2rem 0;
+  width: 100%;
+}
+
+.features .container .row {
+  justify-content: center;
+}
+
+.featureSvg {
+  height: 200px;
+  width: 200px;
+}
+
+/* Module card styling */
+.featureCard {
+  padding: 1rem;
+  transition: transform 0.2s ease-in-out;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin: 0.5rem;
+  height: 100%;
+}
+
+.featureCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+/* Link styling for module titles */
+.featureTitle {
+  text-decoration: none;
+  color: inherit;
+}
+
+.featureTitle:hover {
+  text-decoration: none;
+  color: #2980b9; /* Docusaurus blue */
+}
+
+/* Card content styling */
+.featureContent {
+  padding: 1.5rem;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 996px) {
+  .featureCard {
+    margin-bottom: 2rem;
+  }
+}

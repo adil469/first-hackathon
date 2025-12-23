@@ -1,0 +1,245 @@
+---
+sidebar_position: 8
+title: 'Validation Exercises - ROS 2 Architecture'
+keywords: [ros2, exercises, validation, quiz, concepts, nodes, topics, services]
+description: 'Exercises to validate understanding of ROS 2 architecture concepts'
+---
+
+# Validation Exercises - ROS 2 Architecture
+
+## Learning Objectives
+
+After completing these exercises, you will be able to:
+- Apply your understanding of ROS 2 architecture concepts
+- Identify appropriate use cases for different communication patterns
+- Design simple ROS 2 system architectures
+- Evaluate system designs for correctness and efficiency
+
+## Exercise 1: Concept Identification
+
+### Multiple Choice Question
+Which of the following best describes a ROS 2 node?
+A) A message type used for communication between processes
+B) A process that performs computation and communicates with other nodes
+C) A service that provides request/response functionality
+D) A topic that enables publish/subscribe communication
+
+**Answer**: B) A process that performs computation and communicates with other nodes
+
+### Explanation
+A ROS 2 node is the fundamental building block of a ROS 2 system. It's an executable process that performs specific computations and communicates with other nodes through topics, services, and actions.
+
+## Exercise 2: Communication Pattern Matching
+
+Match each scenario with the most appropriate communication pattern (Topic or Service):
+
+### Scenarios:
+1. Publishing camera images for object detection
+2. Requesting the current robot pose
+3. Sending velocity commands to robot base
+4. Requesting to save current map
+5. Broadcasting joint states from robot controllers
+
+### Answers:
+1. **Topic** - Camera images are continuous data streams
+2. **Service** - Requesting current pose is a request/response operation
+3. **Topic** - Velocity commands are sent continuously for real-time control
+4. **Service** - Saving map is a specific request with a response
+5. **Topic** - Joint states are continuous broadcast data
+
+## Exercise 3: System Design
+
+### Scenario
+Design a simple robot system that:
+- Detects obstacles using a LIDAR sensor
+- Plans paths around obstacles
+- Controls the robot's movement
+- Provides a way for external commands to set navigation goals
+
+### Solution Requirements
+Draw or describe the nodes, topics, and services needed for this system.
+
+### Sample Solution
+```
+┌─────────────────┐    /scan    ┌─────────────────┐    /cmd_vel   ┌─────────────────┐
+│  LIDAR Driver   │────────────▶│  Path Planner   │──────────────▶│  Robot Control  │
+│    Node         │             │     Node        │               │     Node        │
+└─────────────────┘             └─────────────────┘               └─────────────────┘
+                                          ▲
+                                          │ /path
+                                          │
+                                 ┌─────────────────┐
+                                 │  Navigation     │
+                                 │   Interface     │
+                                 │     Node        │
+                                 └─────────────────┘
+                                          ▲
+                                          │ /set_goal (service)
+                                          │
+                                 ┌─────────────────┐
+                                 │ External Goal   │
+                                 │   Setter        │
+                                 └─────────────────┘
+```
+
+**Nodes**:
+- LIDAR Driver Node: Publishes sensor data
+- Path Planner Node: Subscribes to sensor data, publishes path and velocity commands
+- Robot Control Node: Subscribes to velocity commands and controls hardware
+- Navigation Interface Node: Provides service for setting navigation goals
+
+**Topics**:
+- `/scan`: LIDAR sensor data
+- `/cmd_vel`: Velocity commands
+- `/path`: Planned path (optional)
+
+**Services**:
+- `/set_goal`: Service to set navigation goal
+
+## Exercise 4: Quality of Service Considerations
+
+For each scenario, indicate whether you would use Reliable or Best Effort QoS:
+
+1. **Camera image streaming for teleoperation**
+   - Answer: Best Effort
+   - Reason: Old images are not useful, and lower latency is more important than guaranteed delivery
+
+2. **Critical safety messages about emergency stops**
+   - Answer: Reliable
+   - Reason: All messages must be delivered to ensure safety
+
+3. **Odometry data for localization**
+   - Answer: Reliable
+   - Reason: Missing odometry data could cause localization errors
+
+4. **Diagnostic status updates**
+   - Answer: Best Effort
+   - Reason: Occasional missed status updates are acceptable
+
+## Exercise 5: True/False Questions
+
+1. **True/False**: A single node can be both a publisher and a subscriber.
+   - Answer: **True** - Nodes often both send and receive messages.
+
+2. **True/False**: Topics provide synchronous communication.
+   - Answer: **False** - Topics provide asynchronous communication.
+
+3. **True/False**: Services are appropriate for continuous data streams.
+   - Answer: **False** - Services are for request/response operations; topics are for continuous streams.
+
+4. **True/False**: Multiple publishers can send messages to the same topic.
+   - Answer: **True** - Multiple nodes can publish to the same topic.
+
+## Exercise 6: Code Analysis
+
+Consider this code snippet:
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class Talker(Node):
+    def __init__(self):
+        super().__init__('talker')
+        self.publisher = self.create_publisher(String, 'chatter', 10)
+        timer_period = 0.5  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+
+    def timer_callback(self):
+        msg = String()
+        msg.data = 'Hello World'
+        self.publisher.publish(msg)
+
+def main(args=None):
+    rclpy.init(args=args)
+    talker = Talker()
+    rclpy.spin(talker)
+```
+
+### Questions:
+1. What type of ROS 2 communication pattern does this code implement?
+   - Answer: Topic (publish/subscribe)
+
+2. What is the topic name?
+   - Answer: `/chatter`
+
+3. What is the message type?
+   - Answer: `std_msgs/String`
+
+4. At what rate does this node publish messages?
+   - Answer: Every 0.5 seconds (2 Hz)
+
+## Exercise 7: Design Challenge
+
+### Scenario
+You're designing a system for a robot that needs to:
+1. Monitor battery level continuously
+2. Alert when battery falls below 20%
+3. Allow external commands to query current battery level
+4. Accept commands to go into power-saving mode
+
+### Questions:
+1. Design the nodes, topics, and services for this system.
+2. What QoS settings would you recommend for the battery level topic?
+3. How would you handle the case where the battery monitoring node fails?
+
+### Sample Solution:
+```
+┌─────────────────┐    /battery_state   ┌─────────────────┐
+│ Battery Monitor │────────────────────▶│  Alert System   │
+│     Node        │                     │     Node        │
+└─────────────────┘                     └─────────────────┘
+         │                                        │
+         │ /set_power_mode (service)              │ /power_save_cmd
+         └────────────────────────────────────────┘
+                                                      │
+                                        ┌─────────────┴─────┐
+                                        │  Power Control    │
+                                        │      Node         │
+                                        └───────────────────┘
+                                                      ▲
+                                                      │
+                                        ┌─────────────┴─────┐
+                                        │ External Command  │
+                                        │    Interface      │
+                                        └───────────────────┘
+```
+
+**Topics**:
+- `/battery_state`: Continuous battery level updates (Reliable QoS recommended)
+
+**Services**:
+- `/get_battery_level`: Query current battery level
+- `/set_power_mode`: Set power mode (normal/power-saving)
+
+## Summary
+
+These exercises cover the fundamental concepts of ROS 2 architecture:
+- Understanding nodes as the basic computational units
+- Choosing appropriate communication patterns (topics vs services)
+- Designing system architectures with multiple interacting components
+- Considering Quality of Service requirements
+- Analyzing and creating ROS 2 code
+
+Completing these exercises should confirm your understanding of how nodes, topics, and services work together to create robust robotic systems.
+
+### Cross-References to Related Sections
+
+For additional information on the concepts covered in these exercises, see:
+- [Introduction to ROS 2 Architecture](./intro) - Overview of the entire chapter
+- [ROS 2 Middleware](./middleware) - Understanding middleware concepts tested in exercises
+- [ROS 2 Nodes](./nodes) - Detailed explanation of node concepts in exercises
+- [ROS 2 Topics](./topics) - Detailed explanation of topic concepts in exercises
+- [ROS 2 Services](./services) - Detailed explanation of service concepts in exercises
+- [Architecture Diagrams](./diagrams) - Visual representations that support exercise concepts
+- [Integration Example](./integration-example) - Practical application of exercise concepts
+
+## RAG Indexing Metadata
+
+<!-- @metadata:domain robotics -->
+<!-- @metadata:subdomain ros2 -->
+<!-- @metadata:concept exercises -->
+<!-- @metadata:concept validation -->
+<!-- @metadata:concept quiz -->
+<!-- @metadata:level beginner -->
+<!-- @metadata:prerequisites basic-ros2-concepts -->

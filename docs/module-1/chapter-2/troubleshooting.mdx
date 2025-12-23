@@ -1,0 +1,479 @@
+---
+sidebar_position: 8
+title: 'Troubleshooting Common rclpy Issues'
+keywords: [ros2, python, rclpy, troubleshooting, debugging, errors, issues]
+description: 'Common issues and solutions when working with ROS 2 Python nodes using rclpy'
+---
+
+# Troubleshooting Common rclpy Issues
+
+## Learning Objectives
+
+After reviewing this section, you will be able to:
+- Identify and resolve common rclpy-related errors
+- Debug ROS 2 Python nodes effectively
+- Apply best practices for error handling in rclpy
+- Troubleshoot communication and timing issues
+- Understand and fix common configuration problems
+
+## Common Import and Setup Issues
+
+### Issue 1: ModuleNotFoundError for rclpy
+**Symptoms**:
+```
+ModuleNotFoundError: No module named 'rclpy'
+```
+
+**Causes and Solutions**:
+1. **ROS 2 not sourced**: Make sure ROS 2 environment is sourced before running Python scripts
+   ```bash
+   source /opt/ros/humble/setup.bash
+   # Or your specific ROS 2 installation path
+   ```
+
+2. **Python environment not activated**: If using virtual environments, ensure ROS 2 packages are available
+   ```bash
+   # Install ROS 2 packages in virtual environment if needed
+   pip install rclpy  # This is generally not recommended; prefer sourcing ROS 2
+   ```
+
+3. **Wrong Python interpreter**: Ensure using the Python interpreter that has ROS 2 packages
+   ```bash
+   which python3  # Should show the ROS 2 Python path
+   python3 -c "import rclpy"  # Test if import works
+   ```
+
+### Issue 2: Import Errors for Message Types
+**Symptoms**:
+```
+ModuleNotFoundError: No module named 'std_msgs.msg'
+```
+
+**Solutions**:
+1. **Install required message packages**:
+   ```bash
+   sudo apt install ros-humble-std-msgs
+   sudo apt install ros-humble-sensor-msgs
+   sudo apt install ros-humble-geometry-msgs
+   # Install other required message packages
+   ```
+
+2. **Check package.xml dependencies**: Ensure your package.xml includes the required message packages:
+   ```xml
+   <depend>std_msgs</depend>
+   <depend>sensor_msgs</depend>
+   <depend>geometry_msgs</depend>
+   ```
+
+3. **Rebuild the workspace** after installing new packages:
+   ```bash
+   cd ~/my_workspace
+   colcon build --packages-select my_package
+   source install/setup.bash
+   ```
+
+## Node Creation and Initialization Issues
+
+### Issue 3: Node Not Found in Command Line Tools
+**Symptoms**: Node doesn't appear in `ros2 node list` or topics/services don't appear in their respective lists
+
+**Solutions**:
+1. **Ensure rclpy.init() is called**: The node must be initialized before it's visible
+   ```python
+   import rclpy
+   from rclpy.node import Node
+
+   def main(args=None):
+       rclpy.init(args=args)  # This line is crucial
+       node = MyNode()
+       rclpy.spin(node)
+       node.destroy_node()
+       rclpy.shutdown()
+   ```
+
+2. **Check for exceptions during node creation**: Wrap node creation in try-catch to see if there are errors
+   ```python
+   def main(args=None):
+       try:
+           rclpy.init(args=args)
+           node = MyNode()
+           rclpy.spin(node)
+       except Exception as e:
+           print(f"Error: {e}")
+       finally:
+           node.destroy_node()
+           rclpy.shutdown()
+   ```
+
+### Issue 4: Node Name Conflicts
+**Symptoms**: Nodes with the same name interfere with each other or don't behave as expected
+
+**Solutions**:
+1. **Use unique node names**: Ensure each node instance has a unique name
+   ```python
+   # Good: Use descriptive, unique names
+   node = MyNode('sensor_publisher_front')
+   node = MyNode('sensor_publisher_rear')
+
+   # Avoid: Generic names that may conflict
+   node = MyNode('publisher')  # May conflict with other nodes
+   ```
+
+2. **Use namespaces**: Group related nodes under the same namespace
+   ```python
+   # Launch file can assign namespaces
+   # Or use remapping in code if needed
+   ```
+
+## Publisher and Subscriber Issues
+
+### Issue 5: Messages Not Being Received (Pub/Sub Communication)
+**Symptoms**: Publishers send messages but subscribers don't receive them
+
+**Solutions**:
+1. **Check topic names**: Ensure publisher and subscriber use exactly the same topic name
+   ```python
+   # Publisher
+   self.publisher = self.create_publisher(String, 'my_topic', 10)
+
+   # Subscriber must use the same topic name
+   self.subscription = self.create_subscription(String, 'my_topic', callback, 10)
+   ```
+
+2. **Check message types**: Ensure publisher and subscriber use the same message type
+   ```python
+   # Both must use the same type
+   from std_msgs.msg import String  # Both publisher and subscriber
+   ```
+
+3. **Wait for publisher/subscriber to be ready**: For testing, add small delays
+   ```python
+   def test_publish_subscribe():
+       publisher = MyPublisher()
+       subscriber = MySubscriber()
+
+       # Give some time for setup
+       import time
+       time.sleep(1.0)
+
+       # Now send test message
+       publisher.publish_test_message()
+   ```
+
+### Issue 6: Publisher Queue Issues
+**Symptoms**: Messages are being dropped or not all messages are received
+
+**Solutions**:
+1. **Adjust queue size**: Increase queue size for high-frequency publishers
+   ```python
+   # For high-frequency data, increase queue size
+   self.publisher = self.create_publisher(String, 'topic', 100)
+
+   # For low-frequency data, smaller queue is fine
+   self.publisher = self.create_publisher(String, 'config', 1)
+   ```
+
+2. **Use appropriate Quality of Service (QoS)** settings:
+   ```python
+   from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+
+   # For important data that shouldn't be lost
+   qos_profile = QoSProfile(
+       depth=10,
+       reliability=ReliabilityPolicy.RELIABLE,
+       history=HistoryPolicy.KEEP_ALL
+   )
+   self.publisher = self.create_publisher(String, 'important_topic', qos_profile)
+   ```
+
+## Service and Client Issues
+
+### Issue 7: Service Client Times Out
+**Symptoms**: Service client calls fail with timeout errors
+
+**Solutions**:
+1. **Wait for service availability**: Always check if service is available before calling
+   ```python
+   def call_service(self):
+       # Wait for service with timeout
+       if not self.cli.wait_for_service(timeout_sec=5.0):
+           self.get_logger().error('Service not available')
+           return None
+
+       # Make the call
+       future = self.cli.call_async(self.request)
+       rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+
+       if future.done():
+           return future.result()
+       else:
+           self.get_logger().error('Service call timed out')
+           return None
+   ```
+
+2. **Check service name**: Ensure client and server use the same service name
+   ```python
+   # Server creates service with specific name
+   self.service = self.create_service(AddTwoInts, 'add_two_ints', callback)
+
+   # Client must use the same name
+   self.client = self.create_client(AddTwoInts, 'add_two_ints')
+   ```
+
+### Issue 8: Service Server Not Responding
+**Symptoms**: Service requests are received but no response is sent back
+
+**Solutions**:
+1. **Ensure callback returns response**: The service callback must return the response object
+   ```python
+   def service_callback(self, request, response):
+       # Process request
+       response.sum = request.a + request.b
+
+       # CRITICAL: Must return the response
+       return response
+   ```
+
+2. **Check for exceptions in callback**: Wrap callback in try-catch to handle errors
+   ```python
+   def service_callback(self, request, response):
+       try:
+           result = self.calculate(request.a, request.b)
+           response.sum = result
+           response.success = True
+       except Exception as e:
+           response.success = False
+           response.message = str(e)
+           self.get_logger().error(f'Service error: {e}')
+
+       return response
+   ```
+
+## Timing and Synchronization Issues
+
+### Issue 9: Timer Callbacks Not Executing Properly
+**Symptoms**: Timer-based publishing/subscribing doesn't work as expected
+
+**Solutions**:
+1. **Store timer reference**: Keep a reference to the timer to prevent garbage collection
+   ```python
+   class MyNode(Node):
+       def __init__(self):
+           super().__init__('my_node')
+           # Store timer reference
+           self.timer = self.create_timer(0.5, self.timer_callback)
+   ```
+
+2. **Check timer period**: Ensure timer period is appropriate for your use case
+   ```python
+   # For high-frequency control (100 Hz)
+   self.timer = self.create_timer(0.01, self.control_callback)
+
+   # For status updates (1 Hz)
+   self.timer = self.create_timer(1.0, self.status_callback)
+   ```
+
+### Issue 10: Spin Issues
+**Symptoms**: Node stops responding or callbacks don't execute
+
+**Solutions**:
+1. **Ensure proper spinning**: The node must be spun to process callbacks
+   ```python
+   # Correct: Using rclpy.spin() for single node
+   rclpy.spin(node)
+
+   # For multiple nodes, use MultiThreadedExecutor
+   from rclpy.executors import MultiThreadedExecutor
+   executor = MultiThreadedExecutor()
+   executor.add_node(node1)
+   executor.add_node(node2)
+   executor.spin()
+   ```
+
+2. **Handle shutdown properly**: Use try-finally to ensure cleanup
+   ```python
+   def main(args=None):
+       rclpy.init(args=args)
+       node = MyNode()
+
+       try:
+           rclpy.spin(node)
+       except KeyboardInterrupt:
+           pass
+       finally:
+           node.destroy_node()
+           rclpy.shutdown()
+   ```
+
+## Memory and Resource Issues
+
+### Issue 11: Memory Leaks
+**Symptoms**: Process memory usage increases over time
+
+**Solutions**:
+1. **Proper cleanup**: Always destroy nodes and shutdown rclpy
+   ```python
+   def main(args=None):
+       rclpy.init(args=args)
+       node = MyNode()
+
+       try:
+           rclpy.spin(node)
+       except KeyboardInterrupt:
+           pass
+       finally:
+           # Critical: Clean up resources
+           node.destroy_node()
+           rclpy.shutdown()
+   ```
+
+2. **Avoid circular references**: Be careful with class member references
+   ```python
+   # Be careful with callbacks that reference the class
+   class MyNode(Node):
+       def __init__(self):
+           super().__init__('my_node')
+           # This is usually fine
+           self.subscription = self.create_subscription(String, 'topic', self.callback, 10)
+
+       def callback(self, msg):
+           # Process message
+           pass
+   ```
+
+## Environment and Configuration Issues
+
+### Issue 12: Domain ID Conflicts
+**Symptoms**: Nodes on different machines or processes can't communicate
+
+**Solutions**:
+1. **Set appropriate domain IDs**: Use consistent domain IDs for nodes that should communicate
+   ```bash
+   # Set domain ID for all related nodes
+   export ROS_DOMAIN_ID=0
+   ros2 run my_package my_node
+   ```
+
+2. **Check for conflicting domain IDs**: Ensure no interference from other ROS 2 systems
+   ```bash
+   # Check current domain ID
+   echo $ROS_DOMAIN_ID
+
+   # Use different domain ID to isolate systems
+   export ROS_DOMAIN_ID=1
+   ```
+
+### Issue 13: DDS Configuration Issues
+**Symptoms**: Nodes can't find each other despite being on the same network
+
+**Solutions**:
+1. **Check network configuration**: Ensure multicast is enabled on the network
+   ```bash
+   # Test network connectivity
+   ros2 topic list  # Should work if nodes are communicating
+   ```
+
+2. **Use appropriate DDS implementation**: Sometimes switching DDS implementations helps
+   ```bash
+   # Set different DDS implementation
+   export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+   # or
+   export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+   ```
+
+## Debugging Strategies
+
+### Strategy 1: Enable Verbose Logging
+```python
+import rclpy
+from rclpy.logging import LoggingSeverity
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    # Create node with debug logging
+    node = MyNode()
+    node.set_parameters([Parameter('use_sim_time', value=False)])
+
+    # Set logging level
+    node.get_logger().set_level(LoggingSeverity.DEBUG)
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+```
+
+### Strategy 2: Use ROS 2 Command Line Tools
+```bash
+# Check if nodes are running
+ros2 node list
+
+# Check topics
+ros2 topic list
+ros2 topic info /my_topic
+
+# Check services
+ros2 service list
+ros2 service info /my_service
+
+# Echo messages to see if they're being published
+ros2 topic echo /my_topic std_msgs/msg/String
+```
+
+### Strategy 3: Add Debug Print Statements
+```python
+def debug_callback(self, msg):
+    self.get_logger().debug(f'Received message: {msg.data}')
+    # Process message
+    self.get_logger().debug('Message processed successfully')
+```
+
+## Common Error Messages and Solutions
+
+### Error: "Context is not valid"
+**Cause**: rclpy has been shutdown or not properly initialized
+**Solution**: Ensure rclpy.init() is called before creating nodes and avoid multiple shutdown calls
+
+### Error: "Node has already been shutdown"
+**Cause**: Attempting to use a node after destroy_node() has been called
+**Solution**: Check if node is still valid before using it, or recreate the node
+
+### Error: "Queue is full"
+**Cause**: Publisher queue has reached its maximum size
+**Solution**: Increase queue size or process messages faster
+
+### Error: "Future has already been done"
+**Cause**: Attempting to get result from future multiple times
+**Solution**: Check if future.done() before calling future.result()
+
+## Summary
+
+Effective troubleshooting of rclpy issues involves:
+
+1. **Proper setup and initialization**: Ensuring rclpy is properly initialized and nodes are correctly created
+2. **Communication verification**: Checking topic names, message types, and service names match
+3. **Resource management**: Properly managing memory and cleaning up resources
+4. **Environment configuration**: Setting appropriate domain IDs and DDS configurations
+5. **Debugging techniques**: Using logging, command-line tools, and debug prints
+
+When encountering issues, follow this systematic approach:
+1. Check import statements and ROS 2 environment
+2. Verify node creation and initialization
+3. Confirm communication parameters (topics, services, etc.)
+4. Review error messages and logs
+5. Test with command-line tools
+6. Use debugging techniques to isolate the problem
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [Introduction to Python ROS 2 Nodes](./intro) - Overview of Python ROS 2 development
+- [Creating a Python Publisher Node](./publisher-node) - Understanding publisher concepts
+- [Creating a Python Subscriber Node](./subscriber-node) - Understanding subscriber concepts
+- [Creating a Python Service Server](./service-server) - Understanding service concepts
+- [Creating a Python Service Client](./service-client) - Understanding client concepts
+- [Complete rclpy Code Examples](./examples) - Working examples to test against

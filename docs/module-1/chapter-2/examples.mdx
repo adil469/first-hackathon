@@ -1,0 +1,669 @@
+---
+sidebar_position: 6
+title: 'Complete rclpy Code Examples'
+keywords: [ros2, python, rclpy, examples, code, tutorial, executable]
+description: 'Complete, executable code examples for ROS 2 Python nodes using rclpy'
+---
+
+# Complete rclpy Code Examples
+
+## Learning Objectives
+
+After reviewing this section, you will be able to:
+- Use complete, executable code examples for ROS 2 nodes
+- Understand the structure and components of working ROS 2 Python nodes
+- Adapt examples for your own specific use cases
+- Troubleshoot common issues with working examples
+
+## Complete Publisher Example
+
+Here's a complete, executable publisher node that publishes temperature readings:
+
+```python
+#!/usr/bin/env python3
+"""
+Temperature Publisher Node
+
+This node simulates a temperature sensor that publishes temperature readings
+to a topic at regular intervals.
+"""
+
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float64
+import random
+
+
+class TemperaturePublisher(Node):
+    """
+    A ROS 2 node that publishes temperature readings.
+    """
+
+    def __init__(self):
+        super().__init__('temperature_publisher')
+
+        # Create publisher for temperature topic
+        self.publisher = self.create_publisher(Float64, 'temperature', 10)
+
+        # Set timer to publish every 2 seconds
+        timer_period = 2.0  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+
+        # Simulate room temperature around 22°C with variation
+        self.base_temp = 22.0
+        self.get_logger().info('Temperature publisher node initialized')
+
+    def timer_callback(self):
+        """
+        Callback function that executes every timer period.
+        """
+        # Add random variation to simulate real sensor readings
+        current_temp = self.base_temp + random.uniform(-2.0, 2.0)
+
+        # Create and populate message
+        msg = Float64()
+        msg.data = current_temp
+
+        # Publish message
+        self.publisher.publish(msg)
+
+        # Log the published value
+        self.get_logger().info(f'Published temperature: {current_temp:.2f}°C')
+
+
+def main(args=None):
+    """
+    Main function to initialize and run the temperature publisher node.
+    """
+    rclpy.init(args=args)
+
+    temp_publisher = TemperaturePublisher()
+
+    try:
+        rclpy.spin(temp_publisher)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        temp_publisher.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+```
+
+## Complete Subscriber Example
+
+Here's a complete, executable subscriber node that listens to temperature readings:
+
+```python
+#!/usr/bin/env python3
+"""
+Temperature Monitor Node
+
+This node subscribes to temperature readings and logs them.
+"""
+
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float64
+
+
+class TemperatureMonitor(Node):
+    """
+    A ROS 2 node that subscribes to temperature readings and monitors them.
+    """
+
+    def __init__(self):
+        super().__init__('temperature_monitor')
+
+        # Create subscriber for temperature topic
+        self.subscription = self.create_subscription(
+            Float64,
+            'temperature',
+            self.temperature_callback,
+            10
+        )
+
+        # Prevent unused variable warning
+        self.subscription  # type: ignore
+
+        # Configuration parameters
+        self.high_threshold = 25.0  # High temperature threshold
+        self.low_threshold = 18.0   # Low temperature threshold
+
+        self.get_logger().info('Temperature monitor node initialized')
+
+    def temperature_callback(self, msg):
+        """
+        Callback function that executes when a temperature message is received.
+        """
+        current_temp = msg.data
+
+        # Log the received temperature
+        self.get_logger().info(f'Received temperature: {current_temp:.2f}°C')
+
+        # Check for high temperature
+        if current_temp > self.high_threshold:
+            self.get_logger().warn(f'HIGH TEMPERATURE WARNING: {current_temp:.2f}°C')
+
+        # Check for low temperature
+        elif current_temp < self.low_threshold:
+            self.get_logger().warn(f'LOW TEMPERATURE WARNING: {current_temp:.2f}°C')
+
+
+def main(args=None):
+    """
+    Main function to initialize and run the temperature monitor node.
+    """
+    rclpy.init(args=args)
+
+    temp_monitor = TemperatureMonitor()
+
+    try:
+        rclpy.spin(temp_monitor)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        temp_monitor.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+```
+
+## Complete Service Server Example
+
+Here's a complete, executable service server that calculates the distance between two points:
+
+```python
+#!/usr/bin/env python3
+"""
+Distance Calculator Service Server
+
+This node provides a service to calculate the distance between two 2D points.
+"""
+
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import Trigger
+import math
+
+
+class DistanceCalculatorService(Node):
+    """
+    A ROS 2 node that provides a service to calculate distance between points.
+    """
+
+    def __init__(self):
+        super().__init__('distance_calculator_service')
+
+        # Create service for calculating distance
+        self.service = self.create_service(
+            Trigger,
+            'calculate_distance',
+            self.calculate_distance_callback
+        )
+
+        self.get_logger().info('Distance calculator service initialized')
+
+    def calculate_distance_callback(self, request, response):
+        """
+        Callback function that handles distance calculation requests.
+        For this example, we'll simulate calculating distance between two fixed points.
+        In a real application, you'd likely have a custom service type with coordinates.
+        """
+        # For demonstration, we'll just return a simulated calculation
+        # In practice, you'd have coordinates in your service request
+        import random
+
+        # Simulate a distance calculation
+        distance = random.uniform(1.0, 10.0)  # Random distance between 1 and 10 meters
+
+        response.success = True
+        response.message = f'Distance calculated: {distance:.2f} meters'
+
+        self.get_logger().info(f'Distance calculation service called, result: {distance:.2f}m')
+
+        return response
+
+
+def main(args=None):
+    """
+    Main function to initialize and run the distance calculator service.
+    """
+    rclpy.init(args=args)
+
+    distance_service = DistanceCalculatorService()
+
+    try:
+        rclpy.spin(distance_service)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        distance_service.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+```
+
+## Complete Service Client Example
+
+Here's a complete, executable service client that calls the distance calculation service:
+
+```python
+#!/usr/bin/env python3
+"""
+Distance Calculator Client
+
+This node calls the distance calculation service.
+"""
+
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import Trigger
+
+
+class DistanceCalculatorClient(Node):
+    """
+    A ROS 2 node that calls the distance calculation service.
+    """
+
+    def __init__(self):
+        super().__init__('distance_calculator_client')
+
+        # Create client for distance calculation service
+        self.cli = self.create_client(Trigger, 'calculate_distance')
+
+        # Wait for service to be available
+        while not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Distance service not available, waiting again...')
+
+        self.request = Trigger.Request()
+
+    def send_request(self):
+        """
+        Send a request to the distance calculation service.
+        """
+        # Send the request (no parameters needed for Trigger service)
+        future = self.cli.call_async(self.request)
+        return future
+
+
+def main(args=None):
+    """
+    Main function to initialize and run the distance calculator client.
+    """
+    rclpy.init(args=args)
+
+    distance_client = DistanceCalculatorClient()
+
+    # Send request to service
+    future = distance_client.send_request()
+
+    # Wait for response
+    rclpy.spin_until_future_complete(distance_client, future)
+
+    # Process response
+    if future.result() is not None:
+        response = future.result()
+        if response.success:
+            distance_client.get_logger().info(f'Service response: {response.message}')
+        else:
+            distance_client.get_logger().error(f'Service call failed: {response.message}')
+    else:
+        distance_client.get_logger().error('Service call failed')
+
+    # Clean up
+    distance_client.destroy_node()
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+```
+
+## Complete Custom Service Example
+
+For more complex interactions, here's an example with a custom service. First, let's define a custom service type for calculating distance between two points:
+
+```python
+#!/usr/bin/env python3
+"""
+Point Distance Calculator
+
+This node provides a service to calculate the distance between two 2D points.
+Note: This example assumes you have a custom service type defined.
+For this example, we'll use a simplified approach with a standard service.
+"""
+
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import Trigger
+import math
+import json
+
+
+class PointDistanceCalculator(Node):
+    """
+    A ROS 2 node that provides a service to calculate distance between two points.
+    This example simulates custom service functionality using a Trigger service.
+    """
+
+    def __init__(self):
+        super().__init__('point_distance_calculator')
+
+        # In a real implementation, you'd use a custom service type
+        # For now, we'll simulate by storing points in the node
+        self.service = self.create_service(
+            Trigger,
+            'calculate_point_distance',
+            self.calculate_distance_callback
+        )
+
+        # Store example points
+        self.point1 = {'x': 0.0, 'y': 0.0}
+        self.point2 = {'x': 3.0, 'y': 4.0}
+
+        self.get_logger().info('Point distance calculator service initialized')
+
+    def calculate_distance_callback(self, request, response):
+        """
+        Calculate the distance between two stored points.
+        """
+        try:
+            # Calculate Euclidean distance
+            dx = self.point2['x'] - self.point1['x']
+            dy = self.point2['y'] - self.point1['y']
+            distance = math.sqrt(dx*dx + dy*dy)
+
+            response.success = True
+            response.message = f'Distance between ({self.point1["x"]}, {self.point1["y"]}) and ({self.point2["x"]}, {self.point2["y"]}) is {distance:.2f}'
+
+            self.get_logger().info(f'Calculated distance: {distance:.2f}')
+
+        except Exception as e:
+            response.success = False
+            response.message = f'Error calculating distance: {str(e)}'
+            self.get_logger().error(f'Distance calculation error: {str(e)}')
+
+        return response
+
+
+def main(args=None):
+    """
+    Main function to initialize and run the point distance calculator service.
+    """
+    rclpy.init(args=args)
+
+    calculator = PointDistanceCalculator()
+
+    try:
+        rclpy.spin(calculator)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        calculator.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+```
+
+## Complete Publisher-Subscriber Pair Example
+
+Here's a complete example showing how a publisher and subscriber work together:
+
+### Publisher Node: `velocity_publisher.py`
+```python
+#!/usr/bin/env python3
+"""
+Velocity Publisher
+
+This node publishes velocity commands for a robot.
+"""
+
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist
+
+
+class VelocityPublisher(Node):
+    """
+    A ROS 2 node that publishes velocity commands.
+    """
+
+    def __init__(self):
+        super().__init__('velocity_publisher')
+
+        # Create publisher for velocity commands
+        self.publisher = self.create_publisher(Twist, 'cmd_vel', 10)
+
+        # Set timer to publish every 0.5 seconds
+        timer_period = 0.5  # seconds
+        self.timer = self.create_timer(timer_period, self.publish_velocity)
+
+        # Initialize velocity command
+        self.linear_velocity = 0.5  # m/s
+        self.angular_velocity = 0.2  # rad/s
+
+        self.get_logger().info('Velocity publisher node initialized')
+
+    def publish_velocity(self):
+        """
+        Publish velocity commands.
+        """
+        msg = Twist()
+        msg.linear.x = self.linear_velocity
+        msg.angular.z = self.angular_velocity
+
+        self.publisher.publish(msg)
+        self.get_logger().info(f'Published velocity: linear={msg.linear.x}, angular={msg.angular.z}')
+
+
+def main(args=None):
+    """
+    Main function to initialize and run the velocity publisher node.
+    """
+    rclpy.init(args=args)
+
+    vel_publisher = VelocityPublisher()
+
+    try:
+        rclpy.spin(vel_publisher)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        vel_publisher.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+```
+
+### Subscriber Node: `velocity_monitor.py`
+```python
+#!/usr/bin/env python3
+"""
+Velocity Monitor
+
+This node subscribes to velocity commands and logs them.
+"""
+
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist
+
+
+class VelocityMonitor(Node):
+    """
+    A ROS 2 node that monitors velocity commands.
+    """
+
+    def __init__(self):
+        super().__init__('velocity_monitor')
+
+        # Create subscriber for velocity commands
+        self.subscription = self.create_subscription(
+            Twist,
+            'cmd_vel',
+            self.velocity_callback,
+            10
+        )
+
+        # Prevent unused variable warning
+        self.subscription  # type: ignore
+
+        self.get_logger().info('Velocity monitor node initialized')
+
+    def velocity_callback(self, msg):
+        """
+        Handle received velocity commands.
+        """
+        linear = msg.linear.x
+        angular = msg.angular.z
+
+        self.get_logger().info(f'Received velocity command: linear={linear}, angular={angular}')
+
+
+def main(args=None):
+    """
+    Main function to initialize and run the velocity monitor node.
+    """
+    rclpy.init(args=args)
+
+    vel_monitor = VelocityMonitor()
+
+    try:
+        rclpy.spin(vel_monitor)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        vel_monitor.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+```
+
+## How to Run These Examples
+
+### 1. Save the code
+Save each example to a separate Python file in your ROS 2 workspace:
+
+```
+my_workspace/src/my_package/my_package/temperature_publisher.py
+my_workspace/src/my_package/my_package/temperature_monitor.py
+my_workspace/src/my_package/my_package/velocity_publisher.py
+my_workspace/src/my_package/my_package/velocity_monitor.py
+```
+
+### 2. Make the files executable
+```bash
+chmod +x my_workspace/src/my_package/my_package/temperature_publisher.py
+chmod +x my_workspace/src/my_package/my_package/temperature_monitor.py
+chmod +x my_workspace/src/my_package/my_package/velocity_publisher.py
+chmod +x my_workspace/src/my_package/my_package/velocity_monitor.py
+```
+
+### 3. Update your package.xml
+Make sure your package.xml includes the necessary dependencies:
+
+```xml
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>my_package</name>
+  <version>0.0.0</version>
+  <description>Examples for ROS 2 Python nodes</description>
+  <maintainer email="you@example.com">Your Name</maintainer>
+  <license>Apache License 2.0</license>
+
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>example_interfaces</depend>
+
+  <exec_depend>python3</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
+```
+
+### 4. Update your setup.py
+Make sure your setup.py includes the Python files:
+
+```python
+from setuptools import setup
+
+package_name = 'my_package'
+
+setup(
+    name=package_name,
+    version='0.0.0',
+    packages=[package_name],
+    data_files=[
+        ('share/ament_index/resource_index/packages',
+            ['resource/' + package_name]),
+        ('share/' + package_name, ['package.xml']),
+    ],
+    install_requires=['setuptools'],
+    zip_safe=True,
+    maintainer='Your Name',
+    maintainer_email='you@example.com',
+    description='Examples for ROS 2 Python nodes',
+    license='Apache License 2.0',
+    tests_require=['pytest'],
+    entry_points={
+        'console_scripts': [
+            'temperature_publisher = my_package.temperature_publisher:main',
+            'temperature_monitor = my_package.temperature_monitor:main',
+            'velocity_publisher = my_package.velocity_publisher:main',
+            'velocity_monitor = my_package.velocity_monitor:main',
+        ],
+    },
+)
+```
+
+### 5. Build and run
+```bash
+cd my_workspace
+colcon build --packages-select my_package
+source install/setup.bash
+
+# Run publisher and subscriber in separate terminals
+ros2 run my_package temperature_publisher
+ros2 run my_package temperature_monitor
+```
+
+## Summary
+
+These complete, executable code examples demonstrate:
+
+1. **Proper node structure** with correct imports and class inheritance
+2. **Publisher implementation** with message creation and publishing
+3. **Subscriber implementation** with callback functions for message processing
+4. **Service server implementation** with request handling and response generation
+5. **Service client implementation** with request sending and response handling
+6. **Complete main functions** with proper initialization and cleanup
+7. **Error handling** and logging best practices
+8. **Package setup** for proper ROS 2 integration
+
+Each example is ready to run in a ROS 2 environment and can be adapted for specific use cases.
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [Introduction to Python ROS 2 Nodes](./intro) - Overview of Python ROS 2 development
+- [Creating a Python Publisher Node](./publisher-node) - Detailed publisher concepts
+- [Creating a Python Subscriber Node](./subscriber-node) - Detailed subscriber concepts
+- [Creating a Python Service Server](./service-server) - Detailed service server concepts
+- [Creating a Python Service Client](./service-client) - Detailed service client concepts

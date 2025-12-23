@@ -1,0 +1,253 @@
+---
+sidebar_position: 3
+title: 'Data Flow Diagrams: AI Agent to ROS 2 Controller Communication'
+keywords: [ros2, python, ai, agent, controller, diagrams, data-flow, integration, robotics]
+description: 'Visual diagrams showing data flow between Python AI agents and ROS 2 controllers'
+---
+
+# Data Flow Diagrams: AI Agent to ROS 2 Controller Communication
+
+## Overview
+
+This section provides visual diagrams that illustrate the different communication patterns between Python AI agents and ROS 2 controllers. These diagrams help visualize how data flows between high-level AI decision-making and low-level robot control.
+
+## 1. Topic-Based Communication Pattern
+
+### Concept
+In topic-based communication, AI agents publish commands to topics that controllers subscribe to, and controllers publish sensor data to topics that AI agents subscribe to. This creates an asynchronous, continuous data flow.
+
+### Diagram
+```
+┌─────────────────┐                ┌──────────────────┐                ┌─────────────────┐
+│   AI Agent      │                │   ROS 2          │                │  Robot Hardware │
+│                 │    Commands    │   Middleware     │   Commands     │                 │
+│  ┌───────────┐  │   (Topics)     │                  │  (Topics)      │  ┌───────────┐  │
+│  │Command    │  │  ┌─────────┐   │  ┌─────────────┐ │ ┌───────────┐  │  │Actuators  │  │
+│  │Generator  │  │  │/cmd_vel │───┼──┤Topic        │ ├──┤cmd_vel    ├──┼──┤           │  │
+│  │           │  │  │/joint_  │   │  │Communication│ │ │joint_cmd   │  │  │           │  │
+│  │           │  │  │commands │───┼──┤             │ ├──┤           ├──┼──┤           │  │
+│  │           │  │  │/gripper_ │   │  │             │ │ │gripper_cmd │  │  │           │  │
+│  │           │  │  │command  │   │  │             │ │ │           │  │  │           │  │
+│  └───────────┘  │  └─────────┘   │  └─────────────┘ │ └───────────┘  │  └───────────┘  │
+│                 │                │                  │                │                 │
+│  ┌───────────┐  │  Sensor Data   │  ┌─────────────┐ │  Sensor Data   │  ┌───────────┐  │
+│  │Sensor Data│  │  (Topics)      │  │Topic        │ │  (Topics)      │  │Sensors    │  │
+│  │Processor  │  │  ┌─────────┐   │  │Communication│ │  ┌───────────┐ │  │           │  │
+│  │           │  │  │/odom    │◄──┼──┤             │ │◄─┤odom       │ │  │           │  │
+│  │           │  │  │/laser_  │   │  │             │ │  │laser_scan  │ │  │           │  │
+│  │           │  │  │scan     │◄──┼──┤             │ │◄─┤           │ │  │           │  │
+│  │           │  │  │/joint_  │   │  │             │ │  │joint_states│ │  │           │  │
+│  │           │  │  │states   │◄──┼──┤             │ │◄─┤           │ │  │           │  │
+│  └───────────┘  │  └─────────┘   │  └─────────────┘ │ └───────────┘  │  └───────────┘  │
+└─────────────────┘                └──────────────────┘                └─────────────────┘
+```
+
+### Description
+- **AI Agent** continuously publishes commands to ROS 2 topics
+- **ROS 2 Middleware** routes messages between publishers and subscribers
+- **Controllers** receive commands and execute them on hardware
+- **Sensors** provide continuous feedback to the AI agent through topics
+
+## 2. Service-Based Communication Pattern
+
+### Concept
+In service-based communication, AI agents make synchronous requests to controllers and receive immediate responses. This is ideal for discrete actions with immediate feedback.
+
+### Diagram
+```
+┌─────────────────┐                              ┌──────────────────┐                              ┌─────────────────┐
+│   AI Agent      │                              │   ROS 2          │                              │  Robot Hardware │
+│                 │                              │   Middleware     │                              │                 │
+│  ┌───────────┐  │      Service Request         │  ┌─────────────┐ │      Service Request         │  ┌───────────┐  │
+│  │Service    │  │     (Request/Response)       │  │Service      │ │     (Request/Response)       │  │Actuators  │  │
+│  │Client     │──┼──────────────────────────────┼──┤Communication│──┼──────────────────────────────┼──┤           │  │
+│  │           │  │                              │  │             │ │                              │  │           │  │
+│  │           │  │      Service Response        │  │             │ │      Service Response        │  │           │  │
+│  │           │  │◄─────────────────────────────┼──┤             │◄─┼─────────────────────────────┼──┤           │  │
+│  │           │  │                              │  │             │ │                              │  │           │  │
+│  └───────────┘  │                              │  └─────────────┘ │                              │  └───────────┘  │
+│                 │                              │                  │                              │                 │
+│  ┌───────────┐  │                              │  ┌─────────────┐ │                              │  ┌───────────┐  │
+│  │Service    │  │      Service Request         │  │Service      │ │      Service Request         │  │Sensors    │  │
+│  │Client     │──┼──────────────────────────────┼──┤Communication│──┼──────────────────────────────┼──┤           │  │
+│  │           │  │     (Request/Response)       │  │             │ │     (Request/Response)       │  │           │  │
+│  │           │  │                              │  │             │ │                              │  │           │  │
+│  │           │  │      Service Response        │  │             │ │      Service Response        │  │           │  │
+│  │           │  │◄─────────────────────────────┼──┤             │◄─┼─────────────────────────────┼──┤           │  │
+│  └───────────┘  │                              │  └─────────────┘ │                              │  └───────────┘  │
+└─────────────────┘                              └──────────────────┘                              └─────────────────┘
+```
+
+### Description
+- **AI Agent** sends service requests to controllers
+- **ROS 2 Middleware** manages request/response communication
+- **Controllers** process requests and return responses
+- Synchronous communication ensures immediate feedback for discrete actions
+
+## 3. Action-Based Communication Pattern
+
+### Concept
+For long-running tasks with feedback, AI agents use actions which provide continuous feedback during execution, goal management, and result reporting.
+
+### Diagram
+```
+┌─────────────────┐                              ┌──────────────────┐                              ┌─────────────────┐
+│   AI Agent      │                              │   ROS 2          │                              │  Robot Hardware │
+│                 │                              │   Middleware     │                              │                 │
+│  ┌───────────┐  │      Action Goal             │  ┌─────────────┐ │      Action Goal             │  ┌───────────┐  │
+│  │Action     │  │     (Goal/Feedback/Result)   │  │Action       │ │     (Goal/Feedback/Result)   │  │Actuators  │  │
+│  │Client     │──┼──────────────────────────────┼──┤Communication│──┼──────────────────────────────┼──┤           │  │
+│  │           │  │                              │  │             │ │                              │  │           │  │
+│  │           │  │      Action Feedback         │  │             │ │      Action Feedback         │  │           │  │
+│  │           │  │◄─────────────────────────────┼──┤             │◄─┼─────────────────────────────┼──┤           │  │
+│  │           │  │                              │  │             │ │                              │  │           │  │
+│  │           │  │      Action Result           │  │             │ │      Action Result           │  │           │  │
+│  │           │  │◄─────────────────────────────┼──┤             │◄─┼─────────────────────────────┼──┤           │  │
+│  └───────────┘  │                              │  └─────────────┘ │                              │  └───────────┘  │
+│                 │                              │                  │                              │                 │
+│  ┌─────────┐    │                              │  ┌─────────────┐ │                              │  ┌─────────┐    │
+│  │Monitor  │    │                              │  │Action       │ │                              │  │Sensors  │    │
+│  │Progress │    │                              │  │Communication│ │                              │  │         │    │
+│  │         │    │                              │  │             │ │                              │  │         │    │
+│  │         │    │                              │  │             │ │                              │  │         │    │
+│  │         │    │                              │  │             │ │                              │  │         │    │
+│  └─────────┘    │                              │  └─────────────┘ │                              │  └─────────┘    │
+└─────────────────┘                              └──────────────────┘                              └─────────────────┘
+```
+
+### Description
+- **AI Agent** sends goals to action servers
+- **ROS 2 Middleware** manages goal execution with feedback
+- **Controllers** execute long-running tasks and provide continuous feedback
+- **AI Agent** can monitor progress, cancel goals, or receive final results
+
+## 4. Integrated Communication Architecture
+
+### Concept
+Real-world robotic systems often use a combination of all three communication patterns to handle different types of interactions efficiently.
+
+### Diagram
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                          AI Agent (Python)                                                                      │
+│  ┌─────────────────────────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                                                                                                         │  │
+│  │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐           │  │
+│  │  │High-level   │    │Command      │    │Sensor       │    │Action       │    │Service      │           │  │
+│  │  │Decision     │    │Generator    │    │Processor    │    │Manager      │    │Client       │           │  │
+│  │  │Making       │    │             │    │             │    │             │    │             │           │  │
+│  │  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘           │  │
+│  │         │                   │                   │                   │                   │              │  │
+│  └─────────┼───────────────────┼───────────────────┼───────────────────┼───────────────────┼──────────────┘  │
+│            │                   │                   │                   │                   │                 │
+│            │                   │                   │                   │                   │                 │
+│    Topic ┌─▼─┐         Service │          Action   │                   │                   │                 │
+│   Publish│   │         Request │                   │                   │                   │                 │
+│    ┌─────┤   ├─────────────────┼───────────────────┼───────────────────┼───────────────────┼────────────┐    │
+│    │     │   │                 │                   │                   │                   │            │    │
+│    │     └─┬─┘                 │                   │                   │                   │            │    │
+│    │       │                   │                   │                   │                   │            │    │
+│    │       │ Topic Subscribe   │                   │                   │                   │            │    │
+│    │       └───────────────────┼───────────────────┼───────────────────┼───────────────────┼────────────┘    │
+│    │                           │                   │                   │                   │                 │
+│    │     ┌─────────────────────▼───────────────────▼───────────────────▼───────────────────▼─────────────┐ │ │
+│    │     │                              ROS 2 Communication Layer                                        │ │ │
+│    │     │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐  │ │ │
+│    │     │  │Topic        │    │Service     │    │Action      │    │Parameter    │    │Lifecycle    │  │ │ │
+│    │     │  │Communication│    │Communication│    │Communication│    │Management   │    │Management   │  │ │ │
+│    │     │  │             │    │             │    │             │    │             │    │             │  │ │ │
+│    │     │  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘  │ │ │
+│    │     └───────────────────────────────────────────────────────────────────────────────────────────────┘ │ │
+│    │                           │                   │                   │                   │                 │
+│    │                           │                   │                   │                   │                 │
+│    │                    Service│                   │                   │                   │                 │
+│    │                   Response│                   │                   │                   │                 │
+│    │    ┌──────────────────────┼───────────────────┼───────────────────┼───────────────────┼────────────┐    │
+│    │    │ Topic Publish        │                   │                   │                   │            │    │
+│    │    │                      │                   │                   │                   │            │    │
+│    │    └─┬────────────────────┼───────────────────┼───────────────────┼───────────────────┼────────────┘    │
+│    │      │                      │                   │                   │                   │                 │
+│    │      │ Topic Subscribe    │                   │                   │                   │                 │
+│    └──────┼────────────────────┼───────────────────┼───────────────────┼───────────────────┼─────────────────┘
+│           │                    │                   │                   │                   │
+│    ┌──────▼────────┐    ┌──────▼──────┐    ┌──────▼──────┐    ┌──────▼──────┐    ┌──────▼──────┐
+│    │Navigation     │    │Manipulation │    │Perception   │    │Planning     │    │Safety       │
+│    │Controller     │    │Controller   │    │Controller   │    │Controller   │    │Controller   │
+│    │(MoveBase)     │    │(JointState) │    │(SensorFusion│    │(TaskManager)│    │(SafetyNode) │
+│    └───────────────┘    └─────────────┘    │ LaserScan)  │    └─────────────┘    └─────────────┘
+│                                            └─────────────┘
+│
+│                              ┌─────────────────────────────────┐
+│                              │      Robot Hardware Layer     │
+│                              │  ┌─────────┐  ┌──────────────┐ │
+│                              │  │Mobile   │  │Manipulator   │ │
+│                              │  │Base     │  │(Arms, Grips) │ │
+│                              │  │         │  │              │ │
+│                              │  └─────────┘  └──────────────┘ │
+│                              └─────────────────────────────────┘
+└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Description
+- **AI Agent** uses multiple communication patterns simultaneously
+- **ROS 2 Communication Layer** handles all types of communication
+- **Multiple Controllers** specialize in different robot functions
+- **Robot Hardware** executes commands from various controllers
+
+## 5. Data Flow Patterns Summary
+
+| Pattern | Use Case | Communication Type | Timing | Best For |
+|---------|----------|-------------------|---------|----------|
+| Topic-Based | Continuous control | Asynchronous | High frequency | Velocity commands, sensor feedback |
+| Service-Based | Discrete actions | Synchronous | On-demand | Gripper control, navigation goals |
+| Action-Based | Long-running tasks | Asynchronous with feedback | Extended duration | Navigation with progress, manipulation |
+
+## 6. Quality of Service (QoS) Considerations
+
+### Topic Communication QoS Settings
+```
+┌─────────────────┐                    ┌──────────────────┐                    ┌─────────────────┐
+│   AI Agent      │                    │   ROS 2          │                    │  Controllers    │
+│                 │   QoS Settings     │   Middleware     │   QoS Settings     │                 │
+│  ┌───────────┐  │   ┌─────────────┐  │                  │   ┌─────────────┐  │  ┌───────────┐  │
+│  │Publisher  │  │   │Reliability: │  │  ┌─────────────┐ │   │Reliability: │  │  │Subscriber │  │
+│  │           │  │   │RELIABLE or  │  │  │QoS Matching │ │   │RELIABLE or  │  │  │           │  │
+│  │           │  │   │BEST_EFFORT  │  │  │             │ │   │BEST_EFFORT  │  │  │           │  │
+│  │           │  │   │             │  │  │             │ │   │             │  │  │           │  │
+│  │           │  │   │Durability:  │  │  │             │ │   │Durability:  │  │  │           │  │
+│  │           │  │   │VOLATILE or  │  │  │             │ │   │VOLATILE or  │  │  │           │  │
+│  │           │  │   │TRANSIENT_   │  │  │             │ │   │TRANSIENT_   │  │  │           │  │
+│  │           │  │   │LOCAL        │  │  │             │ │   │LOCAL        │  │  │           │  │
+│  │           │  │   │             │  │  │             │ │   │             │  │  │           │  │
+│  │           │  │   │History:     │  │  │             │ │   │History:     │  │  │           │  │
+│  │           │  │   │KEEP_LAST    │  │  │             │ │   │KEEP_LAST    │  │  │           │  │
+│  │           │  │   │or KEEP_ALL  │  │  │             │ │   │or KEEP_ALL  │  │  │           │  │
+│  └───────────┘  │   └─────────────┘  │  └─────────────┘ │   └─────────────┘  │  └───────────┘  │
+└─────────────────┘                    └──────────────────┘                    └─────────────────┘
+```
+
+### Key QoS Parameters:
+- **Reliability**: Ensures message delivery (RELIABLE) vs. best-effort (BEST_EFFORT)
+- **Durability**: Persistence of messages (VOLATILE vs. TRANSIENT_LOCAL)
+- **History**: Number of messages to keep (KEEP_LAST vs. KEEP_ALL)
+- **Depth**: Size of the message queue
+
+## Summary
+
+These diagrams illustrate the fundamental communication patterns between Python AI agents and ROS 2 controllers:
+
+1. **Topic-based communication** provides continuous, asynchronous data flow ideal for real-time control
+2. **Service-based communication** offers synchronous request/response for discrete actions
+3. **Action-based communication** enables long-running tasks with feedback and goal management
+4. **Integrated architecture** combines all patterns for comprehensive robot control
+5. **QoS settings** ensure appropriate communication behavior based on requirements
+
+Understanding these data flow patterns is essential for designing effective AI-ROS integration systems that meet real-time performance requirements while maintaining system reliability and safety.
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [How Python AI Agents Send Commands to ROS 2 Controllers](./ai-ros-integration) - Detailed command sending patterns
+- [How Python AI Agents Receive Sensor Data](./message-passing) - Data receiving patterns
+- [ROS 2 Architecture Understanding](../chapter-1/intro) - Communication patterns foundation
+- [Python ROS 2 Node Creation](../chapter-2/intro) - Node implementation basics

@@ -1,0 +1,254 @@
+---
+sidebar_position: 6
+title: 'ROS 2 Architecture Diagrams and Visual Aids'
+keywords: [ros2, architecture, diagrams, visualization, nodes, topics, services]
+description: 'Visual representations and diagrams of ROS 2 architecture concepts'
+---
+
+# ROS 2 Architecture Diagrams and Visual Aids
+
+## Learning Objectives
+
+After reviewing this section, you will be able to:
+- Visualize the relationships between nodes, topics, and services
+- Understand the flow of information in ROS 2 systems
+- Recognize common architectural patterns in ROS 2 applications
+
+## Basic ROS 2 Architecture
+
+### Simple Publisher-Subscriber Pattern
+
+```
+┌─────────────┐              ┌─────────────┐
+│ Publisher   │─────────────▶│ Topic:      │─────────────▶┌─────────────┐
+│ Node        │              │ /sensor_data│              │ Subscriber  │
+│             │              │             │              │ Node        │
+└─────────────┘              └─────────────┘              └─────────────┘
+```
+
+**Description**: A publisher node sends data to a topic, and a subscriber node receives that data. The publisher doesn't know about the subscriber, and vice versa.
+
+### Service Request-Response Pattern
+
+```
+┌─────────────┐              ┌─────────────┐              ┌─────────────┐
+│ Service     │◀─────────────│ Service:    │─────────────▶│ Service     │
+│ Client      │              │ /calculate  │              │ Server      │
+│ Node        │              │             │              │ Node        │
+└─────────────┘              └─────────────┘              └─────────────┘
+       │                            │                            │
+       │      Request Message       │                            │
+       └───────────────────────────▶│                            │
+                                   │◀──────── Response Message ──┘
+```
+
+**Description**: A service client sends a request to a service server, waits for the response, and receives the result.
+
+## Complex ROS 2 System Architecture
+
+### Multi-Node System with Topics and Services
+
+```
+    Sensor Nodes                    Processing Nodes                Controller Nodes
+┌─────────────────┐            ┌──────────────────┐              ┌─────────────────┐
+│  Camera Node    │───────────▶│  Object Detector │─────────────▶│  Arm Controller │
+│                 │            │                  │              │                 │
+│  IMU Node       │───────────▶│  Path Planner    │─────────────▶│  Base Controller│
+│                 │            │                  │              │                 │
+│  LIDAR Node     │───────────▶│  Behavior Manager│─────────────▶│  Gripper Ctrl  │
+└─────────────────┘            └──────────────────┘              └─────────────────┘
+         │                              │                                 │
+         │                              │                                 │
+         └──────────────────────────────┴─────────────────────────────────┘
+                                    Topics & Services
+```
+
+**Description**: A complex robot system with multiple sensor nodes publishing to processing nodes, which then send commands to controller nodes.
+
+## Lifecycle of a ROS 2 Node
+
+```
+┌─────────────┐
+│ Unconfigured│
+└──────┬──────┘
+       │
+       │ configure()
+       ▼
+┌─────────────┐
+│   Inactive  │◀─────────────────────────────┐
+└──────┬──────┘                              │
+       │                                     │
+       │ activate()                          │
+       ▼                                     │
+┌─────────────┐                              │
+│    Active   │───────── send/recv ────────▶│
+└──────┬──────┘                              │
+       │                                     │
+       │ deactivate()                        │
+       ▼                                     │
+┌─────────────┐                              │
+│   Inactive  │───────── handle error ──────┘
+└──────┬──────┘
+       │
+       │ cleanup()
+       ▼
+┌─────────────┐
+│  Finalized  │
+└─────────────┘
+```
+
+## Topic Communication Patterns
+
+### One-to-Many (Broadcast)
+
+```
+     Publisher
+    ┌─────────┐
+    │ Node A  │
+    └────┬────┘
+         │
+         ▼
+    ┌─────────┐
+    │ Topic:  │
+    │ /cmd_vel│
+    └────┬────┘
+         │
+    ┌────┴────┐
+    │         │
+    ▼         ▼
+┌─────────┐ ┌─────────┐
+│Node B   │ │Node C   │
+│Subscribes│ │Subscribes│
+└─────────┘ └─────────┘
+```
+
+**Description**: One publisher sends to many subscribers. Common for sensor data or commands.
+
+### Many-to-One (Aggregation)
+
+```
+┌─────────┐
+│Node A   │
+│Publishes│
+└────┬────┘
+     │
+     ▼
+┌────┴────┐    ┌─────────┐
+│         │    │ Topic:  │
+│Node B   │───▶│ /sensor │───┐
+│Publishes│    │ _fusion │   │
+└────┬────┘    └─────────┘   │
+     │                       ▼
+     ▼                  ┌─────────┐
+┌─────────┐             │Node D   │
+│Node C   │             │Subscribes│
+│Publishes│             └─────────┘
+└─────────┘
+```
+
+**Description**: Multiple publishers send to one subscriber. Common for sensor fusion.
+
+## Service Communication Patterns
+
+### Simple Service Call
+
+```
+┌─────────────────┐                    ┌─────────────────┐
+│ Service Client  │──────── Request ──▶│ Service Server  │
+│ (Requester)     │                    │ (Provider)      │
+└─────────────────┘◀─ Response ────────┴─────────────────┘
+```
+
+### Service with Multiple Clients
+
+```
+    Multiple Clients
+         │  │  │
+         ▼  ▼  ▼
+┌─────────────────┐
+│   Service:      │
+│   /get_map      │
+└─────────────────┘
+         ▲
+         │
+┌─────────────────┐
+│ Map Server      │
+│ (Provides maps) │
+└─────────────────┘
+```
+
+## Quality of Service (QoS) Visualized
+
+### Reliability Settings
+
+```
+Reliable Delivery (All messages delivered):
+┌───┐  ┌───┐  ┌───┐  ┌───┐
+│ 1 │─▶│ 2 │─▶│ 3 │─▶│ 4 │
+└───┘  └───┘  └───┘  └───┘
+
+Best Effort (Some messages may be lost):
+┌───┐     ┌───┐  ┌───┐
+│ 1 │─▶   │ 3 │─▶│ 4 │
+└───┘     └───┘  └───┘
+   ↑         ↑    ↑
+   │         │    │
+   └─────────┼────┘
+             │
+        Message 2 lost
+```
+
+## ROS 2 Computing Graph
+
+```
+                    ROS 2 Computing Graph
+        ┌─────────────────────────────────────────────┐
+        │                                             │
+        │  ┌─────────┐    ┌─────────┐    ┌─────────┐  │
+        │  │         │    │         │    │         │  │
+        │  │ Camera  │───▶│ Obstacle│───▶│ Planner │  │
+        │  │ Node    │    │ Detector│    │ Node    │  │
+        │  └─────────┘    └─────────┘    └─────────┘  │
+        │         │                           │       │
+        │         ▼                           ▼       │
+        │  ┌─────────┐    ┌─────────┐    ┌─────────┐  │
+        │  │         │    │         │    │         │  │
+        │  │ LIDAR   │───▶│ Mapping │───▶│ Control │  │
+        │  │ Node    │    │ Node    │    │ Node    │  │
+        │  └─────────┘    └─────────┘    └─────────┘  │
+        │                                             │
+        └─────────────────────────────────────────────┘
+```
+
+## Summary
+
+These diagrams illustrate the fundamental architectural patterns in ROS 2 systems:
+
+1. **Nodes** are the basic computational units that perform specific functions
+2. **Topics** enable asynchronous, decoupled communication through publish/subscribe
+3. **Services** enable synchronous, request/response communication
+4. **Actions** (not shown here) enable long-running tasks with feedback
+5. **Quality of Service** settings allow tuning communication behavior
+
+Understanding these patterns is crucial for designing effective robotic systems with ROS 2.
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [Introduction to ROS 2 Architecture](./intro) - Overview of the entire chapter
+- [ROS 2 Middleware](./middleware) - Conceptual understanding of the diagrams
+- [ROS 2 Nodes](./nodes) - Detailed explanation of node concepts shown in diagrams
+- [ROS 2 Topics](./topics) - Detailed explanation of topic concepts shown in diagrams
+- [ROS 2 Services](./services) - Detailed explanation of service concepts shown in diagrams
+- [Integration Example](./integration-example) - Practical application of the concepts in diagrams
+- [Validation Exercises](./exercises) - Practice problems using the concepts in diagrams
+
+## RAG Indexing Metadata
+
+<!-- @metadata:domain robotics -->
+<!-- @metadata:subdomain ros2 -->
+<!-- @metadata:concept architecture -->
+<!-- @metadata:concept diagrams -->
+<!-- @metadata:concept visualization -->
+<!-- @metadata:level beginner -->
+<!-- @metadata:prerequisites basic-python-knowledge -->

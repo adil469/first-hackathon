@@ -1,0 +1,151 @@
+# Voice-to-Action Pipeline with Whisper
+
+For more information about ROS 2 concepts mentioned in this module, see the [ROS 2 Documentation](https://docs.ros.org/en/humble/).
+
+## Learning Objectives
+
+After completing this section, you will be able to:
+- Understand the architecture and workflow of voice-to-action pipelines
+- Explain how Whisper technology processes audio input
+- Describe the steps from audio capture to text transcription
+- Map voice commands to ROS 2 action sequences
+
+## Introduction
+
+The voice-to-action pipeline is a critical component of Vision-Language-Action (VLA) systems that enables robots to respond to spoken commands. This pipeline converts audio input into actionable commands that can be executed by the robot through ROS 2 interfaces. The Whisper model, developed by OpenAI, provides state-of-the-art speech recognition capabilities that make this conversion possible.
+
+## Overview of the Voice-to-Action Pipeline
+
+The voice-to-action pipeline consists of several sequential stages:
+
+1. **Audio Input**: Capturing spoken commands from the user
+2. **Speech Recognition**: Using Whisper to transcribe audio to text
+3. **Intent Extraction**: Understanding the meaning and intent behind the spoken command
+4. **Action Mapping**: Converting the understood intent into a sequence of ROS 2 actions
+5. **Execution**: Executing the mapped actions through ROS 2 interfaces
+
+## Whisper Speech Recognition Technology
+
+Whisper is a general-purpose speech recognition model that excels at various tasks including:
+- Multi-language speech recognition
+- Speech translation
+- Language identification
+- Voice activity detection
+
+### Key Features of Whisper for Robotics
+
+- **Robustness**: Performs well in various acoustic environments
+- **Multilingual Support**: Can understand commands in multiple languages
+- **Punctuation and Capitalization**: Automatically adds punctuation and capitalization to transcriptions
+- **Timestamps**: Provides timing information for different parts of the speech
+- **Custom Vocabulary**: Can be fine-tuned for domain-specific vocabulary
+
+### Integration with Robotics Systems
+
+When integrating Whisper into a robotic system:
+
+- **Real-time vs Batch Processing**: Decide whether to process audio in real-time or in batches
+- **Audio Quality**: Consider microphone quality, noise reduction, and acoustic environment
+- **Latency Requirements**: Balance accuracy with response time needs
+- **Resource Constraints**: Consider computational requirements on robotic platforms
+
+## Voice Processing Workflow from Audio to Text
+
+The voice processing workflow follows these steps:
+
+### 1. Audio Capture
+- Capture audio from microphone or audio input device
+- Apply noise reduction and preprocessing if necessary
+- Ensure appropriate audio format (typically WAV or similar)
+
+### 2. Preprocessing
+- Normalize audio levels
+- Apply noise reduction algorithms
+- Segment audio if processing in chunks
+- Convert to appropriate format for Whisper
+
+### 3. Transcription with Whisper
+- Pass audio data to Whisper model
+- Obtain transcribed text with confidence scores
+- Process any timing information provided
+
+### 4. Post-processing
+- Clean up transcription for better parsing
+- Handle special cases (numbers, technical terms)
+- Prepare text for intent extraction
+
+## Intent Extraction from Transcribed Text
+
+Once the speech is transcribed, the system must extract the user's intent:
+
+### Natural Language Understanding
+- **Command Identification**: Identify the main action requested
+- **Entity Recognition**: Extract specific objects, locations, or parameters
+- **Context Processing**: Consider the current situation and environment
+- **Ambiguity Resolution**: Handle unclear or ambiguous commands
+
+### Common Intent Categories in Robotics
+- **Navigation**: Move to a specific location
+- **Manipulation**: Pick up, place, or manipulate objects
+- **Interaction**: Communicate with humans or other systems
+- **Monitoring**: Observe and report on specific conditions
+- **Task Execution**: Perform complex multi-step operations
+
+## Mapping Intents to ROS 2 Action Sequences
+
+The final step in the voice-to-action pipeline is mapping the extracted intent to ROS 2 action sequences:
+
+### Action Type Identification
+- Map commands to appropriate ROS 2 action types (e.g., move_to_pose, pick_object, navigate_to_pose)
+- Consider action parameters and configuration
+- Validate action feasibility in current context
+
+### Parameter Extraction
+- Extract specific parameters from the command (locations, object names, action parameters)
+- Convert natural language descriptions to specific values
+- Validate parameter ranges and constraints
+
+### Sequence Planning
+- For complex commands, break down into multiple sequential actions
+- Consider dependencies between actions
+- Plan error handling and recovery strategies
+
+### Example Mapping
+```
+Command: "Move the red box to the table"
+- Intent: Move object
+- Entities: Object="red box", Destination="table"
+- ROS 2 Actions:
+  1. find_object("red box")
+  2. pick_object("red box")
+  3. find_location("table")
+  4. place_object("red box", "table")
+```
+
+## Implementation Considerations
+
+When implementing voice-to-action pipelines:
+
+### Error Handling
+- Handle Whisper transcription errors gracefully
+- Provide feedback when commands are unclear
+- Implement fallback strategies for misunderstood commands
+
+### Performance Optimization
+- Cache frequently used models and data
+- Optimize audio processing pipelines
+- Consider edge computing vs cloud processing trade-offs
+
+### Privacy and Security
+- Handle sensitive audio data appropriately
+- Consider local vs cloud processing for privacy
+- Implement secure communication channels
+
+## Summary
+
+The voice-to-action pipeline enables natural interaction between humans and robots through spoken commands. By leveraging Whisper's powerful speech recognition capabilities, robots can understand and respond to natural language instructions, making them more accessible and easier to use. The pipeline requires careful integration of audio processing, speech recognition, natural language understanding, and ROS 2 action execution to create a seamless user experience.
+
+Continue to:
+- [Language-to-Actions](./language-to-actions.mdx) to learn about translating natural language to ROS 2 actions in general
+- [End-to-End Behavior](./end-to-end.mdx) to see how all VLA components integrate in complete systems
+- [VLA Fundamentals](./fundamentals.mdx) for a review of core concepts

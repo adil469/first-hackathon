@@ -1,0 +1,383 @@
+---
+sidebar_position: 7
+title: 'Practical Integration: Nodes, Topics, and Services Together'
+keywords: [ros2, integration, nodes, topics, services, practical, example]
+description: 'A comprehensive example showing how nodes, topics, and services work together in a ROS 2 system'
+---
+
+# Practical Integration: Nodes, Topics, and Services Together
+
+## Learning Objectives
+
+After completing this section, you will be able to:
+- Understand how nodes, topics, and services work together in a real system
+- Design a simple robot application using multiple ROS 2 communication patterns
+- Implement a complete example with publishers, subscribers, and services
+- Recognize the appropriate use of each communication pattern
+
+## Complete Robot System Example: Simple Navigation
+
+Let's build a simple robot navigation system that demonstrates all three communication patterns working together:
+
+### System Overview
+
+Our robot will:
+1. Use a sensor node to detect obstacles
+2. Process sensor data to make navigation decisions
+3. Provide a service to set navigation goals
+4. Send movement commands to the robot base
+
+### Architecture
+
+```
+┌─────────────────┐    Topic: /obstacle_detected    ┌─────────────────┐
+│  Sensor Node    │────────────────────────────────▶│  Navigation     │
+│ (LIDAR/Camera)  │                                 │  Node           │
+└─────────────────┘                                 └─────────────────┘
+        │                                                     │
+        │ Topic: /sensor_raw                           ┌──────┴──────┐
+        └─────────────────────────────────────────────▶│             │
+                                                       │ Service:    │
+┌─────────────────┐    Service: /set_navigation_goal   │ /get_status │
+│  Control Node   │◀───────────────────────────────────│             │
+│ (Robot Base)    │                                    └─────────────┘
+└─────────────────┘
+        ▲
+        │ Topic: /cmd_vel
+        │
+┌─────────────────┐
+│  External       │
+│  Command Source │
+└─────────────────┘
+```
+
+## Implementation Example
+
+### 1. Sensor Node (Publisher)
+
+```python
+# sensor_node.py
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Bool
+from sensor_msgs.msg import LaserScan
+import random
+
+class SensorNode(Node):
+    def __init__(self):
+        super().__init__('sensor_node')
+        # Publisher for processed obstacle detection
+        self.obstacle_publisher = self.create_publisher(Bool, 'obstacle_detected', 10)
+        # Publisher for raw sensor data
+        self.raw_publisher = self.create_publisher(LaserScan, 'sensor_raw', 10)
+
+        # Timer to simulate sensor readings
+        self.timer = self.create_timer(0.5, self.read_sensor_data)
+
+        self.get_logger().info('Sensor Node initialized')
+
+    def read_sensor_data(self):
+        # Simulate sensor reading
+        # In real system, this would read from actual sensor
+        distance = random.uniform(0.1, 5.0)  # Distance in meters
+
+        # Create and publish obstacle detection message
+        obstacle_msg = Bool()
+        obstacle_msg.data = distance < 0.5  # Obstacle if closer than 0.5m
+        self.obstacle_publisher.publish(obstacle_msg)
+
+        # Create and publish raw sensor data
+        scan_msg = LaserScan()
+        scan_msg.header.stamp = self.get_clock().now().to_msg()
+        scan_msg.header.frame_id = 'laser_frame'
+        scan_msg.ranges = [distance] * 360  # Simplified: same distance for all angles
+        self.raw_publisher.publish(scan_msg)
+
+        self.get_logger().info(f'Detected distance: {distance:.2f}m, Obstacle: {obstacle_msg.data}')
+
+def main(args=None):
+    rclpy.init(args=args)
+    sensor_node = SensorNode()
+    rclpy.spin(sensor_node)
+    sensor_node.destroy_node()
+    rclpy.shutdown()
+```
+
+### 2. Navigation Node (Subscriber + Service Server)
+
+```python
+# navigation_node.py
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Bool
+from geometry_msgs.msg import Twist
+from std_srvs.srv import Trigger
+import math
+
+class NavigationNode(Node):
+    def __init__(self):
+        super().__init__('navigation_node')
+
+        # Subscriber for obstacle detection
+        self.obstacle_subscriber = self.create_subscription(
+            Bool, 'obstacle_detected', self.obstacle_callback, 10)
+
+        # Publisher for velocity commands
+        self.cmd_publisher = self.create_publisher(Twist, 'cmd_vel', 10)
+
+        # Service server for setting navigation goals
+        self.nav_service = self.create_service(
+            Trigger, 'set_navigation_goal', self.nav_goal_callback)
+
+        # Service server for getting robot status
+        self.status_service = self.create_service(
+            Trigger, 'get_status', self.get_status_callback)
+
+        # Internal state
+        self.obstacle_detected = False
+        self.navigation_active = False
+        self.target_reached = False
+
+        self.get_logger().info('Navigation Node initialized')
+
+    def obstacle_callback(self, msg):
+        self.obstacle_detected = msg.data
+
+        # Generate movement command based on obstacle detection
+        cmd_msg = Twist()
+
+        if self.obstacle_detected:
+            # Stop and rotate to find clear path
+            cmd_msg.linear.x = 0.0
+            cmd_msg.angular.z = 0.5  # Rotate in place
+            self.get_logger().info('Obstacle detected! Rotating to find clear path.')
+        elif self.navigation_active and not self.target_reached:
+            # Move forward toward goal
+            cmd_msg.linear.x = 0.5
+            cmd_msg.angular.z = 0.0
+            self.get_logger().info('Moving toward goal.')
+        else:
+            # Stop
+            cmd_msg.linear.x = 0.0
+            cmd_msg.angular.z = 0.0
+
+        self.cmd_publisher.publish(cmd_msg)
+
+    def nav_goal_callback(self, request, response):
+        self.navigation_active = True
+        self.target_reached = False
+        self.get_logger().info('Navigation goal set! Starting navigation.')
+
+        response.success = True
+        response.message = 'Navigation started'
+        return response
+
+    def get_status_callback(self, request, response):
+        status = f'Obstacle: {self.obstacle_detected}, Active: {self.navigation_active}, Reached: {self.target_reached}'
+        self.get_logger().info(f'Current status: {status}')
+
+        response.success = True
+        response.message = status
+        return response
+
+def main(args=None):
+    rclpy.init(args=args)
+    nav_node = NavigationNode()
+    rclpy.spin(nav_node)
+    nav_node.destroy_node()
+    rclpy.shutdown()
+```
+
+### 3. Control Node (Subscriber)
+
+```python
+# control_node.py
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist
+from std_msgs.msg import Bool
+
+class ControlNode(Node):
+    def __init__(self):
+        super().__init__('control_node')
+
+        # Subscriber for velocity commands
+        self.cmd_subscriber = self.create_subscription(
+            Twist, 'cmd_vel', self.cmd_callback, 10)
+
+        # Publisher for robot status
+        self.status_publisher = self.create_publisher(Bool, 'robot_status', 10)
+
+        self.get_logger().info('Control Node initialized')
+
+    def cmd_callback(self, msg):
+        # In a real robot, this would send commands to actual motors
+        # Here we just log the command
+        self.get_logger().info(
+            f'Executing command: linear.x={msg.linear.x}, angular.z={msg.angular.z}')
+
+        # Publish robot status (simplified: always operational)
+        status_msg = Bool()
+        status_msg.data = True  # Robot is operational
+        self.status_publisher.publish(status_msg)
+
+def main(args=None):
+    rclpy.init(args=args)
+    control_node = ControlNode()
+    rclpy.spin(control_node)
+    control_node.destroy_node()
+    rclpy.shutdown()
+```
+
+### 4. Command Client (Service Client)
+
+```python
+# command_client.py
+import rclpy
+from rclpy.node import Node
+from std_srvs.srv import Trigger
+
+class CommandClient(Node):
+    def __init__(self):
+        super().__init__('command_client')
+
+        # Create client for navigation service
+        self.nav_client = self.create_client(Trigger, 'set_navigation_goal')
+        self.status_client = self.create_client(Trigger, 'get_status')
+
+        # Wait for services to be available
+        while not self.nav_client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Navigation service not available, waiting...')
+
+        while not self.status_client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Status service not available, waiting...')
+
+    def send_navigation_goal(self):
+        request = Trigger.Request()
+        future = self.nav_client.call_async(request)
+        rclpy.spin_until_future_complete(self, future)
+
+        if future.result() is not None:
+            result = future.result()
+            self.get_logger().info(f'Navigation service result: {result.message}')
+        else:
+            self.get_logger().error('Navigation service call failed')
+
+    def get_robot_status(self):
+        request = Trigger.Request()
+        future = self.status_client.call_async(request)
+        rclpy.spin_until_future_complete(self, future)
+
+        if future.result() is not None:
+            result = future.result()
+            self.get_logger().info(f'Robot status: {result.message}')
+        else:
+            self.get_logger().error('Status service call failed')
+
+def main(args=None):
+    rclpy.init(args=args)
+    client = CommandClient()
+
+    # Get initial status
+    client.get_robot_status()
+
+    # Start navigation
+    client.send_navigation_goal()
+
+    # Check status again
+    client.get_robot_status()
+
+    # Allow some time for the system to run
+    import time
+    time.sleep(5)
+
+    client.destroy_node()
+    rclpy.shutdown()
+```
+
+## Running the Complete System
+
+To run this complete system:
+
+1. **Terminal 1**: Start the sensor node
+   ```bash
+   ros2 run my_package sensor_node
+   ```
+
+2. **Terminal 2**: Start the navigation node
+   ```bash
+   ros2 run my_package navigation_node
+   ```
+
+3. **Terminal 3**: Start the control node
+   ```bash
+   ros2 run my_package control_node
+   ```
+
+4. **Terminal 4**: Send commands using the client
+   ```bash
+   ros2 run my_package command_client
+   ```
+
+## Communication Pattern Analysis
+
+### Topics Used
+- `/obstacle_detected`: Boolean indicating if an obstacle is detected (Sensor → Navigation)
+- `/sensor_raw`: Raw sensor data (Sensor → Other nodes that might need raw data)
+- `/cmd_vel`: Velocity commands for the robot base (Navigation → Control)
+
+### Services Used
+- `/set_navigation_goal`: Service to start navigation behavior (Client → Navigation)
+- `/get_status`: Service to query robot status (Client → Navigation)
+
+### Why Each Pattern?
+
+**Topics** are used for:
+- Sensor data (continuous stream)
+- Velocity commands (real-time control)
+- Robot status (broadcast information)
+
+**Services** are used for:
+- Setting navigation goals (request/response pattern fits well)
+- Querying status (need immediate response)
+
+## Benefits of This Architecture
+
+1. **Modularity**: Each node has a specific responsibility
+2. **Scalability**: Can add more sensor nodes or control nodes easily
+3. **Flexibility**: Can replace one node without affecting others
+4. **Robustness**: Failure of one node doesn't necessarily stop the whole system
+5. **Debugging**: Can test nodes individually
+
+## Summary
+
+This practical example demonstrates how nodes, topics, and services work together in a real ROS 2 system. The key is choosing the right communication pattern for each interaction:
+
+- Use **topics** for continuous data streams and broadcasting
+- Use **services** for request/response operations that need immediate results
+- Use **actions** (not shown here) for long-running operations with feedback
+
+The modular design allows each component to be developed, tested, and maintained independently while working together as a cohesive system.
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [Introduction to ROS 2 Architecture](./intro) - Overview of the entire chapter
+- [ROS 2 Middleware](./middleware) - Understanding how the example fits into the middleware concept
+- [ROS 2 Nodes](./nodes) - Detailed understanding of the nodes in the example
+- [ROS 2 Topics](./topics) - Detailed understanding of the topics in the example
+- [ROS 2 Services](./services) - Detailed understanding of the services in the example
+- [Architecture Diagrams](./diagrams) - Visual representations that complement this example
+- [Validation Exercises](./exercises) - Practice problems based on integration concepts
+
+## RAG Indexing Metadata
+
+<!-- @metadata:domain robotics -->
+<!-- @metadata:subdomain ros2 -->
+<!-- @metadata:concept integration -->
+<!-- @metadata:concept practical-example -->
+<!-- @metadata:concept nodes -->
+<!-- @metadata:concept topics -->
+<!-- @metadata:concept services -->
+<!-- @metadata:level intermediate -->
+<!-- @metadata:prerequisites basic-python-knowledge, ros2-nodes-concepts, ros2-topics-concepts, ros2-services-concepts -->

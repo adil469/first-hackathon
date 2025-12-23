@@ -1,0 +1,225 @@
+---
+sidebar_position: 5
+title: 'ROS 2 Services - Request/Response Communication'
+keywords: [ros2, services, request-response, synchronous, communication]
+description: 'Understanding ROS 2 services and the request/response communication pattern'
+---
+
+# ROS 2 Services - Request/Response Communication
+
+## Learning Objectives
+
+After completing this section, you will be able to:
+- Explain the request/response communication pattern in ROS 2
+- Understand how services enable synchronous communication between nodes
+- Identify when to use services vs other communication methods
+- Recognize the benefits and limitations of the service communication pattern
+
+## Introduction to Services
+
+In ROS 2, **services** provide a synchronous, two-way communication mechanism between nodes. Unlike topics which are asynchronous and one-way, services follow a **request/response pattern** where one node (the client) sends a request to another node (the server), and waits for a response.
+
+### The Request/Response Pattern
+
+The request/response pattern is characterized by:
+- **Synchronous**: The client waits for a response before continuing
+- **Two-way**: There's a request message and a response message
+- **Direct**: The client typically knows which server it's communicating with
+- **Reliable**: The client knows whether the request succeeded or failed
+
+## How Services Work
+
+### Service Names
+Like topics, services have unique names within the ROS 2 system, such as:
+- `/add_two_ints` - for adding two integers
+- `/set_parameters` - for configuring node parameters
+- `/get_map` - for retrieving a map from a mapping node
+
+### Service Servers
+A service server node:
+1. Creates a service server for a specific service
+2. Waits for incoming requests
+3. Processes each request and sends back a response
+4. Can handle multiple requests sequentially or concurrently
+
+### Service Clients
+A service client node:
+1. Creates a service client for a specific service
+2. Sends requests to the service server
+3. Waits for and receives responses from the server
+
+## Service Communication Flow
+
+```
+Service Client Node ── Request ──→ Service Server Node
+         ↓                              ↓
+    (waits for response) ←─ Response ──┘
+```
+
+## Service Message Types
+
+Every service has a specific **service type** that defines both the request and response message structures. The service type is defined in an `.srv` file with two parts:
+
+```
+# Request part (before the '---')
+int64 a
+int64 b
+---
+# Response part (after the '---')
+int64 sum
+```
+
+This example is from the `AddTwoInts` service, where:
+- The request contains two integers to add
+- The response contains the sum of those integers
+
+## Practical Example: Add Two Integers
+
+Here's a complete example of a service server and client:
+
+```python
+# Service Server: add_server.py
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class AddTwoIntsServer(Node):
+    def __init__(self):
+        super().__init__('add_two_ints_server')
+        self.srv = self.create_service(AddTwoInts, 'add_two_ints', self.add_callback)
+
+    def add_callback(self, request, response):
+        response.sum = request.a + request.b
+        self.get_logger().info(f'Returning: {request.a} + {request.b} = {response.sum}')
+        return response
+
+def main(args=None):
+    rclpy.init(args=args)
+    add_two_ints_server = AddTwoIntsServer()
+    rclpy.spin(add_two_ints_server)
+    add_two_ints_server.destroy_node()
+    rclpy.shutdown()
+
+# Service Client: add_client.py
+import sys
+import rclpy
+from rclpy.node import Node
+from example_interfaces.srv import AddTwoInts
+
+class AddTwoIntsClient(Node):
+    def __init__(self):
+        super().__init__('add_two_ints_client')
+        self.client = self.create_client(AddTwoInts, 'add_two_ints')
+
+        while not self.client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Service not available, waiting again...')
+
+        self.request = AddTwoInts.Request()
+
+    def send_request(self, a, b):
+        self.request.a = a
+        self.request.b = b
+        future = self.client.call_async(self.request)
+        rclpy.spin_until_future_complete(self, future)
+        return future.result()
+
+def main(args=None):
+    rclpy.init(args=args)
+    add_two_ints_client = AddTwoIntsClient()
+
+    response = add_two_ints_client.send_request(int(sys.argv[1]), int(sys.argv[2]))
+    if response:
+        add_two_ints_client.get_logger().info(
+            f'Result of {sys.argv[1]} + {sys.argv[2]} = {response.sum}')
+    else:
+        add_two_ints_client.get_logger().info('Service call failed')
+
+    add_two_ints_client.destroy_node()
+    rclpy.shutdown()
+```
+
+## Common Service Types
+
+### Built-in Service Types
+- `std_srvs/Empty` - Simple service that takes no parameters and returns nothing
+- `std_srvs/SetBool` - Sets a boolean value, returns success/failure
+- `std_srvs/Trigger` - Triggers an action, returns success/failure with message
+
+### Domain-Specific Service Types
+- `nav_msgs/GetMap` - Retrieve a map from a mapping node
+- `tf2_msgs/FrameGraph` - Get the transform frame graph
+- `rcl_interfaces/SetParameters` - Set node parameters
+
+## Benefits of Service Communication
+
+### Synchronous Operation
+- Client knows exactly when the operation completes
+- Can handle the response immediately
+- Clear success/failure indication
+
+### Request/Response Pattern
+- Perfect for operations that need parameters and return results
+- Natural for "get" and "set" operations
+- Good for configuration and control tasks
+
+### Reliability
+- Client knows if the service call succeeded or failed
+- Can implement retry logic if needed
+- Clear error reporting
+
+## Limitations and Considerations
+
+### Blocking Nature
+- Client is blocked while waiting for response
+- Can cause performance issues if server is slow
+- Potential for deadlocks if not designed carefully
+
+### Direct Coupling
+- Client typically needs to know about the server
+- Less flexibility than topics for multiple subscribers
+- Server must be available when client makes request
+
+### No Broadcasting
+- Can't send to multiple servers simultaneously
+- Each client must make separate requests
+
+## When to Use Services
+
+Services are ideal for:
+- **Configuration**: Setting parameters, changing modes
+- **Control**: Triggering actions, commanding specific behaviors
+- **Querying**: Getting current state, requesting specific information
+- **Synchronous operations**: When you need to wait for a result
+
+## Services vs Topics vs Actions
+
+| Communication Type | Pattern | Use Case | Synchronous/Asynchronous |
+|-------------------|---------|----------|-------------------------|
+| Topics | Publish/Subscribe | Continuous data streams | Asynchronous |
+| Services | Request/Response | One-time operations | Synchronous |
+| Actions | Goal/Feedback/Result | Long-running tasks | Asynchronous with feedback |
+
+## Summary
+
+Services in ROS 2 implement the request/response pattern, providing synchronous, two-way communication between nodes. Service clients send requests to service servers and wait for responses. This pattern is ideal for operations that need parameters and return results, such as configuration, control, and querying tasks. While services provide reliability and clear success/failure indication, they are synchronous and can block the client while waiting for responses.
+
+### Cross-References to Related Sections
+
+For deeper understanding of related concepts, see:
+- [Introduction to ROS 2 Architecture](./intro) - Overview of the entire chapter
+- [ROS 2 Middleware](./middleware) - How services fit into the middleware system
+- [ROS 2 Nodes](./nodes) - How nodes provide and use services
+- [ROS 2 Topics](./topics) - Comparison with publish/subscribe communication
+- [Architecture Diagrams](./diagrams) - Visual representations of service communication
+- [Integration Example](./integration-example) - Complete example with service communication
+- [Validation Exercises](./exercises) - Practice problems on service concepts
+
+## RAG Indexing Metadata
+
+<!-- @metadata:domain robotics -->
+<!-- @metadata:subdomain ros2 -->
+<!-- @metadata:concept services -->
+<!-- @metadata:concept request-response -->
+<!-- @metadata:concept synchronous -->
+<!-- @metadata:level beginner -->
+<!-- @metadata:prerequisites basic-python-knowledge -->

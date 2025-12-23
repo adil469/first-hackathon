@@ -1,0 +1,221 @@
+---
+sidebar_position: 2
+description: Detailed explanation of URDF XML structure and elements
+---
+
+# URDF XML Structure and Elements
+
+## Learning Objectives
+- Identify and explain the core elements of URDF: links, joints, and materials
+- Understand the relationship between URDF elements and robot components
+- Recognize the different joint types and their applications
+- Describe visual, collision, and inertial properties in URDF
+
+## Core URDF Elements
+
+### Robot Element
+Every URDF file begins with a `<robot>` element that serves as the root container:
+
+```xml
+<robot name="my_humanoid_robot">
+  <!-- All links and joints go here -->
+</robot>
+```
+
+### Links
+A **link** represents a rigid body part of the robot. Think of it as a single physical component like an arm segment, torso, or wheel.
+
+```xml
+<link name="torso">
+  <visual>
+    <geometry>
+      <box size="0.3 0.2 0.5"/>
+    </geometry>
+    <material name="gray">
+      <color rgba="0.5 0.5 0.5 1.0"/>
+    </material>
+  </visual>
+  <collision>
+    <geometry>
+      <box size="0.3 0.2 0.5"/>
+    </geometry>
+  </collision>
+  <inertial>
+    <mass value="5.0"/>
+    <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+  </inertial>
+</link>
+```
+
+**Components of a link:**
+- **Visual**: How the link appears in visualization tools
+- **Collision**: How the link interacts in physics simulation
+- **Inertial**: Physical properties like mass and moment of inertia
+
+### Joints
+A **joint** connects two links and defines how they can move relative to each other:
+
+```xml
+<joint name="torso_to_head" type="revolute">
+  <parent link="torso"/>
+  <child link="head"/>
+  <origin xyz="0.0 0.0 0.4" rpy="0 0 0"/>
+  <axis xyz="0 1 0"/>
+  <limit lower="-1.57" upper="1.57" effort="100" velocity="1"/>
+</joint>
+```
+
+**Joint properties:**
+- **Type**: Defines the movement constraints (revolute, continuous, prismatic, etc.)
+- **Parent/Child**: Links that the joint connects
+- **Origin**: Position and orientation of the joint relative to the parent
+- **Axis**: Direction of motion for the joint
+- **Limit**: Movement constraints (when applicable)
+
+## Joint Types in URDF
+
+### 1. Fixed Joint
+A joint with no movement - permanently connects two links:
+```xml
+<joint name="fixed_joint" type="fixed">
+  <parent link="base"/>
+  <child link="sensor"/>
+</joint>
+```
+
+### 2. Revolute Joint
+Rotates around a single axis with limited range:
+```xml
+<joint name="elbow_joint" type="revolute">
+  <parent link="upper_arm"/>
+  <child link="forearm"/>
+  <axis xyz="0 1 0"/>
+  <limit lower="-2.0" upper="1.5" effort="30" velocity="1.0"/>
+</joint>
+```
+
+### 3. Continuous Joint
+Rotates around a single axis with no limits:
+```xml
+<joint name="continuous_joint" type="continuous">
+  <parent link="torso" />
+  <child link="head"/>
+  <axis xyz="0 1 0"/>
+</joint>
+```
+
+### 4. Prismatic Joint
+Linear motion along a single axis:
+```xml
+<joint name="slider_joint" type="prismatic">
+  <parent link="base"/>
+  <child link="platform"/>
+  <axis xyz="0 0 1"/>
+  <limit lower="0" upper="0.5" effort="50" velocity="0.5"/>
+</joint>
+```
+
+## Visual and Collision Properties
+
+### Visual Properties
+Define how the link appears in visualization:
+```xml
+<visual>
+  <origin xyz="0 0 0" rpy="0 0 0"/>
+  <geometry>
+    <!-- Options: box, cylinder, sphere, mesh -->
+    <box size="0.1 0.1 0.1"/>
+  </geometry>
+  <material name="red">
+    <color rgba="1 0 0 1"/>
+  </material>
+</visual>
+```
+
+### Collision Properties
+Define how the link interacts in physics simulation:
+```xml
+<collision>
+  <origin xyz="0 0 0" rpy="0 0 0"/>
+  <geometry>
+    <box size="0.1 0.1 0.1"/>
+  </geometry>
+</collision>
+```
+
+## Inertial Properties
+Define the physical characteristics for simulation:
+```xml
+<inertial>
+  <origin xyz="0 0 0" rpy="0 0 0"/>
+  <mass value="0.1"/>
+  <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+</inertial>
+```
+
+## Complete Example: Simple Humanoid Arm
+```xml
+<robot name="simple_arm">
+  <!-- Shoulder link -->
+  <link name="shoulder">
+    <visual>
+      <geometry>
+        <cylinder radius="0.05" length="0.1"/>
+      </geometry>
+      <material name="gray">
+        <color rgba="0.5 0.5 0.5 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.05" length="0.1"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.005"/>
+    </inertial>
+  </link>
+
+  <!-- Upper arm link -->
+  <link name="upper_arm">
+    <visual>
+      <geometry>
+        <cylinder radius="0.04" length="0.3"/>
+      </geometry>
+      <material name="gray">
+        <color rgba="0.5 0.5 0.5 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.04" length="0.3"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.8"/>
+      <inertia ixx="0.02" ixy="0" ixz="0" iyy="0.02" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <!-- Elbow joint -->
+  <joint name="elbow_joint" type="revolute">
+    <parent link="shoulder"/>
+    <child link="upper_arm"/>
+    <origin xyz="0 0 -0.15" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.5" upper="2.5" effort="50" velocity="2.0"/>
+  </joint>
+</robot>
+```
+
+## Key Takeaways
+
+1. **Links** represent rigid bodies, **joints** define how they connect and move
+2. Each link has visual, collision, and inertial properties
+3. Joint types determine the movement constraints between links
+4. URDF provides a complete description of a robot's physical structure
+
+## Independent Validation
+
+After completing this section, you should be able to identify the different elements in a URDF file and explain their purpose. You should understand how links and joints work together to create a robot's structure, and recognize the different joint types and their applications.
