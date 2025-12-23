@@ -42,3 +42,4 @@ If you are using GitHub pages for hosting, this command is a convenient way to b
 "# AI-book-" 
 "# my.ai.book.free" 
 "# my.ai.book.free" 
+"# hackathone-ai-book" 
