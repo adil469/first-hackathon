@@ -44,7 +44,7 @@ const config: Config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
-            'https://github.com/adil469/ai-book-ai/edit/main/',
+            'https://github.com/adil469/first-hackathon/edit/main/',
         },
         blog: {
           showReadingTime: true,
@@ -55,7 +55,7 @@ const config: Config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
-            'https://github.com/adil469/ai-book-ai/edit/main/',
+            'https://github.com/adil469/first-hackathon/edit/main/',
           // Useful options to enforce blogging best practices
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
@@ -105,7 +105,7 @@ const config: Config = {
           label: 'Book',
         },
         {
-          href: 'https://github.com/adil469/ai-book-ai',
+          href: 'https://github.com/adil469/first-hackathon',
           label: 'GitHub',
           position: 'right',
         },
@@ -145,7 +145,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/adil469/ai-book-ai',
+              href: 'https://github.com/adil469/first-hackathon',
             },
           ],
         },
